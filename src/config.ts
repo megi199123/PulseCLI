@@ -18,7 +18,13 @@ export interface Config {
   };
 }
 
-const CONFIG_DIR = path.join(os.homedir(), ".pulse-cli");
+// Config location. Defaults to ~/.pulse-cli, but PULSE_CONFIG_DIR lets a
+// deployment keep its own isolated session (base URL + cookies + user) so
+// multiple copies — e.g. a local-dev "admin" install and a live "as me"
+// install — never share or clobber each other's state.
+const CONFIG_DIR = process.env.PULSE_CONFIG_DIR
+  ? path.resolve(process.env.PULSE_CONFIG_DIR)
+  : path.join(os.homedir(), ".pulse-cli");
 const CONFIG_PATH = path.join(CONFIG_DIR, "config.json");
 
 function ensureConfigDir(): void {

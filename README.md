@@ -106,6 +106,21 @@ pulse --base https://your-railway-app.up.railway.app issues list --status OPEN
 
 Configuration is stored at `~/.pulse-cli/config.json`.
 
+### Isolated sessions (`PULSE_CONFIG_DIR`)
+
+Set `PULSE_CONFIG_DIR` to keep a deployment's session (base URL + cookies + user)
+in its own folder instead of `~/.pulse-cli`. This lets you run multiple installs
+side by side without them clobbering each other's login — for example a local-dev
+install authenticated as `admin`, and a separate live install authenticated as
+your own user:
+
+```bash
+PULSE_CONFIG_DIR=C:\Workspace\Tools\pulsecli\state pulse whoami
+```
+
+A launcher script can set this automatically (see the live deployment's
+`pulse.cmd` / `pulse.ps1`, which point `PULSE_CONFIG_DIR` at their own `state/`).
+
 ### Local dev defaults
 
 - Base URL: `http://localhost:3000`
