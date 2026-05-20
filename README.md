@@ -1,6 +1,41 @@
 # PulseCLI
 
+[![Node](https://img.shields.io/badge/node-%E2%89%A518-339933?logo=node.js&logoColor=white)](https://nodejs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![CLI](https://img.shields.io/badge/CLI-commander-5B5B5B)](https://github.com/tj/commander.js)
+[![Output](https://img.shields.io/badge/output-%2D%2Djson-2EA043)](#the---json-flag)
+[![API](https://img.shields.io/badge/API-Atlas%20Pulse-E11D48)](#what-it-is)
+
 A scriptable HTTP command-line interface for [Atlas Pulse](https://github.com/megi199123/atlas) — the task tracker built for Atlas ERP. PulseCLI is a fast alternative to the web UI for power users, automation scripts, and AI agents. Every command supports `--json` for machine-readable output.
+
+---
+
+## Quick start
+
+```bash
+# 1. Build and (optionally) expose the global `pulse` command
+npm install && npm run build && npm link
+
+# 2. Point at a Pulse instance and log in
+pulse config set-url http://localhost:3000
+pulse login --email admin@pulse.local --password admin123
+
+# 3. Read
+pulse issues list --status OPEN --limit 10        # human-readable table
+pulse --json issues list --status OPEN | jq '.[].key'   # agent / scripts
+pulse issue view PULSE-0001
+
+# 4. Write
+pulse issue create --title "Fix login redirect" \
+  --description "404 after OAuth callback" --category BUG --priority HIGH
+pulse issue edit PULSE-0001 --status IN_PROGRESS --assignee Karl
+pulse comment add PULSE-0001 "Deployed fix to staging, awaiting QA."
+pulse attachment add PULSE-0001 ./report.pdf
+pulse link add PULSE-0001 PULSE-0002 BLOCKS
+```
+
+> New here? Jump to [Configuration](#configuration), [Authentication](#authentication),
+> or the full [Command Reference](#command-reference).
 
 ---
 
@@ -132,7 +167,7 @@ pulse --json issues list --status OPEN | jq '.[].key'
 
 ```bash
 pulse config set-url <url>          # store the base URL
-pulse config show                   # print current config (no secrets)
+pulse config get                    # print current config (no secrets)
 ```
 
 ---
