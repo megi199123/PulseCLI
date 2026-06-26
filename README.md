@@ -215,8 +215,8 @@ pulse --json issues list --search "railway deploy" | jq '.[].key'
 # Available filters:
 #   --category TASK|BUG
 #   --priority LOW|MEDIUM|HIGH|CRITICAL
-#   --status OPEN|IN_PROGRESS|STAGING|RESOLVED|CLOSED
-#   --module <MODULE>
+#   --status OPEN|IN_PROGRESS|STAGING|IN_REVIEW|RESOLVED|CLOSED
+#   --module <slug>   (see `pulse modules list` for valid slugs)
 #   --assignee <id or name>
 #   --reporter <id or name>
 #   --search <text>
@@ -263,10 +263,19 @@ pulse issue edit PULSE-0001 --priority CRITICAL --assignee Jose
 # Clear a nullable field with an empty string
 pulse issue edit PULSE-0001 --assignee ""      # unassign
 pulse issue edit PULSE-0001 --due ""           # clear due date
-pulse issue edit PULSE-0001 --module ""        # clear module
+# Note: --module cannot be cleared (modules are NOT NULL) — reassign instead, see below
 
 # Set due date (YYYY-MM-DD)
 pulse issue edit PULSE-0001 --due 2026-06-15
+
+# Phase scheduling — Development and EUS Testing each have their own window
+# (shown as the Dev / EUS Test rows in `issue view`). Empty string clears, like --due.
+pulse issue edit PULSE-0001 --dev-start 2026-06-10 --dev-due 2026-06-14
+pulse issue edit PULSE-0001 --eus-start 2026-06-15 --eus-due 2026-06-18
+pulse issue edit PULSE-0001 --dev-due ""        # clear a phase date
+
+# Reassign the module (DB-driven slug; cannot be cleared — modules are NOT NULL)
+pulse issue edit PULSE-0001 --module CLEARING_HOUSE
 
 # Delete (prompts for confirmation)
 pulse issue delete PULSE-0001
@@ -276,7 +285,7 @@ pulse --json issue delete PULSE-0001 --yes     # json mode requires --yes
 
 ---
 
-### Users and Labels
+### Users, Labels, and Modules
 
 ```bash
 # List all users (id + name)
@@ -286,6 +295,11 @@ pulse --json users list
 # List all labels
 pulse labels list
 pulse --json labels list
+
+# List active modules — the valid slugs for --module on list/create/edit.
+# Modules are DB-driven (no longer a fixed enum), so this is the source of truth.
+pulse modules list
+pulse --json modules list
 ```
 
 ---

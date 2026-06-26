@@ -8,7 +8,7 @@ import { Command } from "commander";
 import { printJson, printTable } from "../output.js";
 import type { CliContext } from "../index.js";
 import type { PulseClient } from "../client.js";
-import type { UserLookup, Label } from "../types.js";
+import type { UserLookup, Label, ModuleLookup } from "../types.js";
 
 // ---- Cuid heuristic ----
 // Cuids start with "c" and are ~25 lowercase alphanumeric characters.
@@ -78,6 +78,36 @@ export async function resolveLabelId(
   return matches[0]!.id;
 }
 
+/**
+ * Validate & canonicalize a module value against the active, DB-driven modules.
+ * Modules are no longer an enum — `/api/modules` is the source of truth.
+ * - Input is matched case-insensitively against module slug (and label as a
+ *   convenience), and the canonical UPPERCASE slug is returned.
+ * - Throws with the list of valid slugs if there's no match, so the user never
+ *   has to guess. (The API would also reject an invalid slug, but this gives a
+ *   far more useful error before the round trip.)
+ */
+export async function resolveModuleSlug(
+  client: PulseClient,
+  value: string,
+): Promise<string> {
+  const modules = await client.get<ModuleLookup[]>("/api/modules");
+  const lower = value.trim().toLowerCase();
+  const match = modules.find(
+    (m) => m.slug.toLowerCase() === lower || m.label.toLowerCase() === lower,
+  );
+  if (!match) {
+    const valid = modules
+      .map((m) => m.slug)
+      .sort()
+      .join(", ");
+    throw new Error(
+      `Unknown module "${value}". Valid modules: ${valid || "(none configured)"}.`,
+    );
+  }
+  return match.slug;
+}
+
 // ---- Registrar ----
 
 export function register(program: Command, ctx: CliContext): void {
@@ -123,6 +153,39 @@ export function register(program: Command, ctx: CliContext): void {
             { key: "id", header: "ID" },
             { key: "name", header: "Name" },
             { key: "color", header: "Color" },
+          ],
+        );
+      }
+    });
+
+  // ---- pulse modules list ----
+  // Modules are DB-driven now; this is how you discover valid `--module` slugs.
+  const modulesCmd = program
+    .command("modules")
+    .description("Module lookup commands");
+
+  modulesCmd
+    .command("list")
+    .description("List active modules (valid values for --module)")
+    .action(async () => {
+      const modules = await ctx.client.get<ModuleLookup[]>("/api/modules");
+      if (ctx.json) {
+        printJson(modules);
+      } else {
+        printTable(
+          modules.map((m) => ({
+            slug: m.slug,
+            label: m.label,
+            prefix: m.prefix,
+            open: m.openIssues,
+            total: m.totalIssues,
+          })),
+          [
+            { key: "slug", header: "Slug" },
+            { key: "label", header: "Label" },
+            { key: "prefix", header: "Prefix" },
+            { key: "open", header: "Open" },
+            { key: "total", header: "Total" },
           ],
         );
       }

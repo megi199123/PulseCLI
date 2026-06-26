@@ -13,7 +13,7 @@ import * as readline from "node:readline";
 import { Command } from "commander";
 import { printJson, printTable, ok, info } from "../output.js";
 import { truncate, formatDate, parseDueDate } from "../util.js";
-import { resolveUserId, resolveLabelId } from "./lookups.js";
+import { resolveUserId, resolveLabelId, resolveModuleSlug } from "./lookups.js";
 import type { CliContext } from "../index.js";
 import type {
   IssueListItem,
@@ -59,8 +59,8 @@ export function register(program: Command, ctx: CliContext): void {
     .description("List issues with optional filters")
     .option("--category <category>", "Filter by category (TASK|BUG)")
     .option("--priority <priority>", "Filter by priority (LOW|MEDIUM|HIGH|CRITICAL)")
-    .option("--status <status>", "Filter by status (OPEN|IN_PROGRESS|STAGING|RESOLVED|CLOSED)")
-    .option("--module <module>", "Filter by module")
+    .option("--status <status>", "Filter by status (OPEN|IN_PROGRESS|STAGING|IN_REVIEW|RESOLVED|CLOSED)")
+    .option("--module <module>", "Filter by module slug (see `pulse modules list`)")
     .option("--assignee <id>", "Filter by assignee id or name")
     .option("--reporter <id>", "Filter by reporter id or name")
     .option("--search <text>", "Full-text search")
@@ -203,7 +203,9 @@ export function register(program: Command, ctx: CliContext): void {
         `Reporter  : ${detail.reporter ? `${detail.reporter.name} (${detail.reporter.email})` : "—"}`,
         `Assignee  : ${detail.assignee ? `${detail.assignee.name} (${detail.assignee.email})` : "—"}`,
         `Created   : ${formatDate(detail.createdAt)}   Updated: ${formatDate(detail.updatedAt)}`,
-        `Due       : ${formatDate(detail.dueDate)}`,
+        `Due       : ${formatDate(detail.dueDate) || "—"}`,
+        `Dev       : ${formatDate(detail.devStartDate) || "—"} → ${formatDate(detail.devDueDate) || "—"}`,
+        `EUS Test  : ${formatDate(detail.eusStartDate) || "—"} → ${formatDate(detail.eusDueDate) || "—"}`,
         `Milestone : ${detail.milestone?.name ?? "—"}`,
         `Sprint    : ${detail.sprint?.name ?? "—"}`,
         `Labels    : ${detail.labels.length > 0 ? detail.labels.map((l) => l.name).join(", ") : "—"}`,
@@ -310,7 +312,7 @@ export function register(program: Command, ctx: CliContext): void {
     .option("--description-file <path>", "Read description from a file")
     .requiredOption("--category <category>", "Category: TASK or BUG")
     .option("--priority <priority>", "Priority: LOW|MEDIUM|HIGH|CRITICAL")
-    .option("--module <module>", "Module enum value")
+    .option("--module <module>", "Module slug (see `pulse modules list`); defaults to the configured default module")
     .option("--assignee <id>", "Assignee user id or name")
     .option("--milestone <id>", "Milestone id")
     .option("--sprint <id>", "Sprint id")
@@ -363,7 +365,7 @@ export function register(program: Command, ctx: CliContext): void {
           category,
         };
         if (opts.priority) body.priority = opts.priority.toUpperCase();
-        if (opts.module) body.module = opts.module.toUpperCase();
+        if (opts.module) body.module = await resolveModuleSlug(ctx.client, opts.module);
         if (assigneeId) body.assigneeId = assigneeId;
         if (opts.milestone) body.milestoneId = opts.milestone;
         if (opts.sprint) body.sprintId = opts.sprint;
@@ -388,13 +390,17 @@ export function register(program: Command, ctx: CliContext): void {
     .option("--description <text>", "New description")
     .option("--description-file <path>", "Read new description from a file")
     .option("--category <category>", "Category: TASK or BUG")
-    .option("--status <status>", "Status (OPEN|IN_PROGRESS|STAGING|RESOLVED|CLOSED)")
+    .option("--status <status>", "Status (OPEN|IN_PROGRESS|STAGING|IN_REVIEW|RESOLVED|CLOSED)")
     .option("--priority <priority>", "Priority (LOW|MEDIUM|HIGH|CRITICAL)")
-    .option("--module <module>", "Module (empty string to clear)")
+    .option("--module <module>", "Module slug to reassign (see `pulse modules list`)")
     .option("--assignee <id>", "Assignee id or name (empty string to unassign)")
     .option("--milestone <id>", "Milestone id (empty string to clear)")
     .option("--sprint <id>", "Sprint id (empty string to clear)")
-    .option("--due <date>", "Due date YYYY-MM-DD or ISO (empty string to clear)")
+    .option("--due <date>", "Overall due date YYYY-MM-DD or ISO (empty string to clear)")
+    .option("--dev-start <date>", "Development start date YYYY-MM-DD or ISO (empty string to clear)")
+    .option("--dev-due <date>", "Development due date YYYY-MM-DD or ISO (empty string to clear)")
+    .option("--eus-start <date>", "EUS testing start date YYYY-MM-DD or ISO (empty string to clear)")
+    .option("--eus-due <date>", "EUS testing due date YYYY-MM-DD or ISO (empty string to clear)")
     .action(
       async (
         ref: string,
@@ -410,6 +416,10 @@ export function register(program: Command, ctx: CliContext): void {
           milestone?: string;
           sprint?: string;
           due?: string;
+          devStart?: string;
+          devDue?: string;
+          eusStart?: string;
+          eusDue?: string;
         },
       ) => {
         const body: Record<string, unknown> = {};
@@ -427,9 +437,14 @@ export function register(program: Command, ctx: CliContext): void {
         if (opts.status !== undefined) body.status = opts.status.toUpperCase();
         if (opts.priority !== undefined) body.priority = opts.priority.toUpperCase();
 
-        // Nullable fields: empty string → null
+        // Module is NOT NULL on the issue — it can be reassigned but not cleared.
         if (opts.module !== undefined) {
-          body.module = opts.module === "" ? null : opts.module.toUpperCase();
+          if (opts.module === "") {
+            throw new Error(
+              "Module cannot be cleared — provide a valid slug (see `pulse modules list`).",
+            );
+          }
+          body.module = await resolveModuleSlug(ctx.client, opts.module);
         }
         if (opts.assignee !== undefined) {
           if (opts.assignee === "") {
@@ -450,6 +465,18 @@ export function register(program: Command, ctx: CliContext): void {
           } else {
             body.dueDate = parseDueDate(opts.due) || null;
           }
+        }
+
+        // Phase scheduling dates — same empty-string→null clearing as --due.
+        const phaseDateOpts: Array<[string | undefined, string]> = [
+          [opts.devStart, "devStartDate"],
+          [opts.devDue, "devDueDate"],
+          [opts.eusStart, "eusStartDate"],
+          [opts.eusDue, "eusDueDate"],
+        ];
+        for (const [value, field] of phaseDateOpts) {
+          if (value === undefined) continue;
+          body[field] = value === "" ? null : parseDueDate(value) || null;
         }
 
         if (Object.keys(body).length === 0) {

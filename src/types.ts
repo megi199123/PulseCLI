@@ -8,30 +8,24 @@
 
 export type Category = "TASK" | "BUG";
 
-export type Status = "OPEN" | "IN_PROGRESS" | "STAGING" | "RESOLVED" | "CLOSED";
+export type Status =
+  | "OPEN"
+  | "IN_PROGRESS"
+  | "STAGING"
+  | "IN_REVIEW"
+  | "RESOLVED"
+  | "CLOSED";
 
 export type Priority = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 
-export type Module =
-  | "SHELL"
-  | "FINANCE"
-  | "HR"
-  | "GRAPHICS"
-  | "TABANG"
-  | "REPORTING"
-  | "VENDOR"
-  | "ICDC"
-  | "LEGACY_ALIGN"
-  | "INVENTORY"
-  | "SUPPLY_CHAIN"
-  | "QHP"
-  | "ISMC"
-  | "CLEARING_HOUSE"
-  | "POS_CENTRAL"
-  | "MARKETING"
-  | "ITEM_MANAGEMENT"
-  | "PULSE"
-  | "MARITES";
+/**
+ * Module is now database-driven (the legacy `TicketModule` enum was dropped).
+ * On the wire `issue.module` is the module's UPPERCASE slug (e.g. "PULSE",
+ * "CLEARING_HOUSE"). The set is open — discover valid slugs via `pulse modules
+ * list` (GET /api/modules). Kept as a string alias rather than a closed union so
+ * new modules don't require a CLI release.
+ */
+export type Module = string;
 
 export type LinkType = "RELATED" | "BLOCKS" | "BLOCKED_BY";
 
@@ -124,6 +118,12 @@ export interface IssueListItem {
   reporterId: string;
   assigneeId: string | null;
   dueDate: string | null;
+  // Phase scheduling: Development and EUS Testing each have their own
+  // start/due window. `dueDate` remains the overall ship target.
+  devStartDate: string | null;
+  devDueDate: string | null;
+  eusStartDate: string | null;
+  eusDueDate: string | null;
   createdAt: string;
   updatedAt: string;
   reporter: UserRef | null;
@@ -174,4 +174,17 @@ export interface SessionResponse {
 export interface UserLookup {
   id: string;
   name: string;
+}
+
+/** Module lookup (GET /api/modules array element). `module` is a slug alias. */
+export interface ModuleLookup {
+  id: string;
+  module: string;
+  slug: string;
+  label: string;
+  prefix: string;
+  sortOrder: number;
+  isActive: boolean;
+  totalIssues: number;
+  openIssues: number;
 }
