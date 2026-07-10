@@ -65,7 +65,7 @@ export function register(program: Command, ctx: CliContext): void {
     .option("--reporter <id>", "Filter by reporter id or name")
     .option("--search <text>", "Full-text search")
     .option("--label <id>", "Filter by label id or name")
-    .option("--milestone <id>", "Filter by milestone id")
+    .option("--milestone <id>", "Filter by milestone id (also reveals RELEASED-milestone issues)")
     .option("--sprint <id>", "Filter by sprint id")
     .option("--limit <n>", "Maximum number of results", parseInt)
     .option("--overdue", "Show only overdue issues")
@@ -75,6 +75,7 @@ export function register(program: Command, ctx: CliContext): void {
     .option("--has-links", "Only issues with links")
     .option("--unassigned", "Only unassigned issues (assigneeId=null)")
     .option("--sprint-none", "Only issues without a sprint (sprintId=null)")
+    .option("--include-released", "Include issues in RELEASED milestones (hidden by default)")
     .action(
       async (opts: {
         category?: string;
@@ -95,6 +96,7 @@ export function register(program: Command, ctx: CliContext): void {
         hasLinks?: boolean;
         unassigned?: boolean;
         sprintNone?: boolean;
+        includeReleased?: boolean;
       }) => {
         // Resolve name→id for assignee/reporter/label
         let assigneeId: string | "null" | undefined;
@@ -138,6 +140,7 @@ export function register(program: Command, ctx: CliContext): void {
           hasAttachments: opts.hasAttachments ? true : undefined,
           hasComments: opts.hasComments ? true : undefined,
           hasLinks: opts.hasLinks ? true : undefined,
+          includeReleased: opts.includeReleased ? true : undefined,
         };
 
         const issues = await ctx.client.get<IssueListItem[]>("/api/issues", query);
