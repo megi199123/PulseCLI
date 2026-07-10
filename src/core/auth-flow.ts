@@ -1,5 +1,5 @@
 // ============================================================
-// PulseCLI — src/auth-flow.ts
+// PulseCLI — src/core/auth-flow.ts
 // NextAuth v4 CredentialsProvider login flow.
 // Flow: GET /api/auth/csrf → POST /api/auth/callback/credentials → GET /api/auth/session
 // ============================================================

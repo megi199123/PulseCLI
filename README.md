@@ -51,6 +51,25 @@ PulseCLI wraps the Atlas Pulse REST API so you can manage issues, attachments, l
 
 ---
 
+## Source layout
+
+```
+src/
+  core/     Pulse API client (cookie jar + bearer auth), config, auth flow,
+            the typed contract mirror, lookups — framework-agnostic; never
+            imports commander or the mcp SDK
+  cli/      commander program + command registrars (src/cli/commands/*.ts)
+            — this is the `pulse` bin
+  mcp/      MCP stdio server (src/mcp/index.ts, src/mcp/tools.ts)
+            — this is the `pulse-mcp` bin
+```
+
+`core/` never imports from `cli/` or `mcp/`; both `cli/` and `mcp/` depend on
+`core/` but never on each other. `npm run build` (plain `tsc`, `rootDir: src`)
+emits 1:1 to `dist/` — `src/x/y.ts` becomes `dist/x/y.js`.
+
+---
+
 ## Install
 
 ```bash
@@ -212,10 +231,14 @@ pulse issues list --overdue --unassigned
 # Full-text search, JSON output
 pulse --json issues list --search "railway deploy" | jq '.[].key'
 
+# Issues in RELEASED milestones are hidden by default — opt in explicitly
+pulse issues list --include-released
+pulse issues list --milestone <id>   # also reveals RELEASED-milestone issues for that milestone
+
 # Available filters:
 #   --category TASK|BUG
 #   --priority LOW|MEDIUM|HIGH|CRITICAL
-#   --status OPEN|IN_PROGRESS|STAGING|IN_REVIEW|RESOLVED|CLOSED
+#   --status BACKLOG|OPEN|IN_PROGRESS|STAGING|IN_REVIEW|RESOLVED|CLOSED
 #   --module <slug>   (see `pulse modules list` for valid slugs)
 #   --assignee <id or name>
 #   --reporter <id or name>
@@ -231,7 +254,13 @@ pulse --json issues list --search "railway deploy" | jq '.[].key'
 #   --has-links
 #   --unassigned
 #   --sprint-none
+#   --include-released   (include issues in RELEASED milestones; hidden by default)
 ```
+
+> **Heads up:** `GET /api/issues` hides issues sitting in a RELEASED milestone
+> unless `--include-released` is passed (or a `--milestone` filter narrows to
+> one milestone). Omitting it silently undercounts — always pass it for
+> sweeps/reports that need a complete picture.
 
 ---
 
@@ -255,6 +284,14 @@ pulse issue create \
   --title "Refactor HR module" \
   --description-file ./description.md \
   --category TASK
+
+# Create directly into a specific status — omitting --status yields BACKLOG,
+# the server default (matches what the web UI does on a bare "new issue")
+pulse issue create \
+  --title "Spike: evaluate X" \
+  --description "..." \
+  --category TASK \
+  --status OPEN
 
 # Edit — only specified fields are changed
 pulse issue edit PULSE-0001 --status IN_PROGRESS
@@ -380,6 +417,40 @@ pulse --json comment add PULSE-0001 "LGTM"
 
 ---
 
+### Code References
+
+Link PRs, MRs, and commits to issues (`code-ref`), and pull a flat cross-issue
+report for KPI-style joins.
+
+```bash
+# List code references on an issue
+pulse code-ref list PULSE-0001
+pulse --json code-ref list PULSE-0001
+
+# Attach a PR/MR/commit URL — GitHub or GitLab
+pulse code-ref add PULSE-0001 https://github.com/org/repo/pull/123
+pulse code-ref add PULSE-0001 https://gitlab.com/org/repo/-/merge_requests/45 --title "Fix login redirect"
+pulse --json code-ref add PULSE-0001 https://github.com/org/repo/commit/abc1234
+
+# Remove (prompts for confirmation)
+pulse code-ref rm PULSE-0001 <refId>
+pulse code-ref rm PULSE-0001 <refId> --yes
+pulse --json code-ref rm PULSE-0001 <refId> --yes
+
+# Flat report across ALL issues — filterable by date range, provider, repo
+pulse code-ref report
+pulse code-ref report --from 2026-06-01 --to 2026-06-30
+pulse code-ref report --provider GITHUB --repo org/repo
+pulse --json code-ref report | jq '.[].issue.key'
+```
+
+The report endpoint is server-capped at 1000 rows (`take: 1000`); the CLI
+prints a warning to stderr (never stdout, so `--json` piping stays clean)
+when a response comes back exactly at that cap, since the true result set
+may be larger — narrow `--from`/`--to` to be sure you have everything.
+
+---
+
 ## Using PulseCLI as an AI agent
 
 PulseCLI is designed as a first-class tool for AI agents:
@@ -402,6 +473,70 @@ pulse --json attachment add "$KEY" ./deploy-report.pdf
 # 3. Mark in-progress
 pulse --json issue edit "$KEY" --status IN_PROGRESS --yes
 ```
+
+---
+
+## MCP Server
+
+PulseCLI also ships `pulse-mcp` — an MCP (Model Context Protocol) **stdio**
+server, so an MCP-aware client (e.g. Claude Code) can call Pulse directly as
+tools instead of shelling out to the `pulse` binary. It shares all of its
+HTTP/auth plumbing with the CLI via `src/core/`.
+
+### Tools
+
+| Tool | Purpose |
+|------|---------|
+| `pulse_search_issues` | Filter/search issues by status, priority, category, module, assignee, text, milestone, or sprint. Results are compacted to key fields and capped at 200. RELEASED-milestone issues are hidden unless `includeReleased: true` (or a `milestone` filter) is passed — same rule as `pulse issues list`. |
+| `pulse_get_issue` | Full detail for one issue by key or id — attachments, comments, links, activity, codeRefs. Description HTML is stripped to plain text. |
+| `pulse_list_lookups` | Reference data for resolving filter/create values: `modules`, `users`, `labels`, `milestones`, or `sprints`. |
+| `pulse_code_refs_report` | Flat code-reference report across all issues (joined with issue key/status/assignee/module), filterable by date range/provider/repo, for KPI-style joins. Flags `truncated: true` at the server's 1000-row cap. |
+| `pulse_add_code_ref` | Attach a PR/MR/commit URL to an issue. API errors (403 missing scope, 400 unparseable URL, 409 duplicate) come back as the tool's result text, not a tool failure — read it to see why. |
+
+### Registering it
+
+A committed `.mcp.json` at the repo root registers the server for Claude Code
+(and any other MCP client that reads that file):
+
+```json
+{
+  "mcpServers": {
+    "pulse": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["C:\\Workspace\\Git\\PulseCLI\\dist\\mcp\\index.js"],
+      "env": { "PULSE_BASE_URL": "https://pulse.isi.ph" }
+    }
+  }
+}
+```
+
+Build first (`npm run build`) — the entry point is `dist/mcp/index.js`, not
+source. `.mcp.json` is committed, so it intentionally carries **no token** —
+see Authentication below for how to supply one.
+
+### Authentication
+
+`pulse-mcp` picks auth in this order, same precedence the underlying
+`PulseClient` applies everywhere:
+
+1. **`PULSE_TOKEN` (bearer, preferred)** — if set in the server process's
+   environment, every request sends `Authorization: Bearer <token>` and the
+   session is never persisted to disk (no cookie-jar reads or writes). This
+   is the right mode for a server registered via the committed `.mcp.json`:
+   set `PULSE_TOKEN` in your own shell or MCP client's env config, never in
+   the file itself.
+2. **Cookie-jar fallback** — if `PULSE_TOKEN` is unset, `pulse-mcp` falls
+   back to the session left behind by `pulse login` (`~/.pulse-cli` or
+   `PULSE_CONFIG_DIR`), and that session's cookies ARE refreshed/persisted
+   as usual. A startup diagnostic on stderr reports which mode is active
+   (stdout is reserved for JSON-RPC, so this never corrupts the protocol).
+
+> Tokens will be mintable from Pulse's **Settings → API Tokens** page once
+> the pulse-api-tokens feature ships server-side. Until then, use the
+> cookie-jar fallback: run `pulse login` once against the target deployment
+> (optionally under a dedicated `PULSE_CONFIG_DIR`), and `pulse-mcp` will
+> pick up that session automatically.
 
 ---
 

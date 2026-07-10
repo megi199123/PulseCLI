@@ -1,14 +1,11 @@
 // ============================================================
-// PulseCLI — src/commands/lookups.ts
-// Commands: users list, labels list
-// Also exports name→id resolution helpers used by issues.ts
+// PulseCLI — src/core/lookups.ts
+// Name→id resolution helpers used by CLI commands and (in future) MCP tools.
+// Commander-free, stdout-free.
 // ============================================================
 
-import { Command } from "commander";
-import { printJson, printTable } from "../output.js";
-import type { CliContext } from "../index.js";
-import type { PulseClient } from "../client.js";
-import type { UserLookup, Label, ModuleLookup } from "../types.js";
+import type { PulseClient } from "./client.js";
+import type { UserLookup, Label, ModuleLookup } from "./types.js";
 
 // ---- Cuid heuristic ----
 // Cuids start with "c" and are ~25 lowercase alphanumeric characters.
@@ -106,88 +103,4 @@ export async function resolveModuleSlug(
     );
   }
   return match.slug;
-}
-
-// ---- Registrar ----
-
-export function register(program: Command, ctx: CliContext): void {
-  // ---- pulse users list ----
-  const usersCmd = program
-    .command("users")
-    .description("User lookup commands");
-
-  usersCmd
-    .command("list")
-    .description("List all users")
-    .action(async () => {
-      const users = await ctx.client.get<UserLookup[]>("/api/users");
-      if (ctx.json) {
-        printJson(users);
-      } else {
-        printTable(
-          users.map((u) => ({ id: u.id, name: u.name })),
-          [
-            { key: "id", header: "ID" },
-            { key: "name", header: "Name" },
-          ],
-        );
-      }
-    });
-
-  // ---- pulse labels list ----
-  const labelsCmd = program
-    .command("labels")
-    .description("Label lookup commands");
-
-  labelsCmd
-    .command("list")
-    .description("List all labels")
-    .action(async () => {
-      const labels = await ctx.client.get<Label[]>("/api/labels");
-      if (ctx.json) {
-        printJson(labels);
-      } else {
-        printTable(
-          labels.map((l) => ({ id: l.id, name: l.name, color: l.color })),
-          [
-            { key: "id", header: "ID" },
-            { key: "name", header: "Name" },
-            { key: "color", header: "Color" },
-          ],
-        );
-      }
-    });
-
-  // ---- pulse modules list ----
-  // Modules are DB-driven now; this is how you discover valid `--module` slugs.
-  const modulesCmd = program
-    .command("modules")
-    .description("Module lookup commands");
-
-  modulesCmd
-    .command("list")
-    .description("List active modules (valid values for --module)")
-    .action(async () => {
-      const modules = await ctx.client.get<ModuleLookup[]>("/api/modules");
-      if (ctx.json) {
-        printJson(modules);
-      } else {
-        printTable(
-          modules.map((m) => ({
-            slug: m.slug,
-            label: m.label,
-            prefix: m.prefix,
-            open: m.openIssues,
-            total: m.totalIssues,
-          })),
-          [
-            { key: "slug", header: "Slug" },
-            { key: "label", header: "Label" },
-            { key: "prefix", header: "Prefix" },
-            { key: "open", header: "Open" },
-            { key: "total", header: "Total" },
-          ],
-        );
-      }
-    });
 }

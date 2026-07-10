@@ -1,5 +1,5 @@
 // ============================================================
-// PulseCLI — src/commands/comments.ts
+// PulseCLI — src/cli/commands/comments.ts
 // Commands:
 //   pulse comment list <issueKeyOrId>           — list comments for an issue
 //   pulse comment add <issueKeyOrId> [text]     — add a comment (text or --file)
@@ -8,9 +8,9 @@
 import fs from "node:fs";
 import { Command } from "commander";
 import { printJson, printTable, ok, info } from "../output.js";
-import { formatDate, truncate, stripHtml, resolveIssueId } from "../util.js";
-import type { CliContext } from "../index.js";
-import type { Comment, IssueDetail } from "../types.js";
+import { formatDate, truncate, stripHtml, resolveIssueId } from "../../core/util.js";
+import type { CliContext } from "../../core/context.js";
+import type { Comment, IssueDetail } from "../../core/types.js";
 
 // ---- Registrar ----
 

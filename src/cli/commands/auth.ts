@@ -1,15 +1,15 @@
 // ============================================================
-// PulseCLI — src/commands/auth.ts
+// PulseCLI — src/cli/commands/auth.ts
 // Commands: login, logout, whoami, config get, config set-url
 // ============================================================
 
 import { Command } from "commander";
 import * as readline from "node:readline";
 import { Writable } from "node:stream";
-import { login, getSession } from "../auth-flow.js";
-import { clearSession, setBaseUrl, loadConfig } from "../config.js";
+import { login, getSession } from "../../core/auth-flow.js";
+import { clearSession, setBaseUrl, loadConfig } from "../../core/config.js";
 import { printJson, printTable, ok, info } from "../output.js";
-import type { CliContext } from "../index.js";
+import type { CliContext } from "../../core/context.js";
 
 // ---- Readline helpers ----
 

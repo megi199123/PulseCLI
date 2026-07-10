@@ -1,10 +1,11 @@
 // ============================================================
-// PulseCLI — src/output.ts
+// PulseCLI — src/cli/output.ts
 // Zero-dependency output formatting: tables, JSON, errors.
+// WRITES TO STDOUT — must NOT be imported by core/ or mcp/.
 // ============================================================
 
-import { PulseApiError } from "./client.js";
-import { truncate } from "./util.js";
+import { PulseApiError } from "../core/client.js";
+import { truncate } from "../core/util.js";
 
 // ---- JSON mode flag ----
 

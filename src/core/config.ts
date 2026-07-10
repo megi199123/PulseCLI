@@ -1,5 +1,5 @@
 // ============================================================
-// PulseCLI — src/config.ts
+// PulseCLI — src/core/config.ts
 // Config stored at ~/.pulse-cli/config.json
 // ============================================================
 
@@ -10,6 +10,12 @@ import path from "path";
 export interface Config {
   baseUrl: string;
   cookies: Record<string, string>;
+  /**
+   * Optional bearer token. When set, PulseClient sends
+   * `Authorization: Bearer <token>` on every request IN ADDITION TO the
+   * cookie header, so a cookie-only Pulse deployment keeps working.
+   */
+  token?: string;
   user?: {
     id: string;
     name: string;
@@ -48,6 +54,7 @@ export function loadConfig(): Config {
     return {
       baseUrl: parsed.baseUrl ?? defaults.baseUrl,
       cookies: parsed.cookies ?? {},
+      token: parsed.token,
       user: parsed.user,
     };
   } catch {

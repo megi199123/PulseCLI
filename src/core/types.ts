@@ -1,5 +1,5 @@
 // ============================================================
-// PulseCLI — src/types.ts
+// PulseCLI — src/core/types.ts
 // Mirrors the Atlas Pulse API contract exactly.
 // Field names match raw Prisma camelCase; enum values UPPERCASE.
 // ============================================================
@@ -9,6 +9,7 @@
 export type Category = "TASK" | "BUG";
 
 export type Status =
+  | "BACKLOG"
   | "OPEN"
   | "IN_PROGRESS"
   | "STAGING"
@@ -102,6 +103,37 @@ export interface IssueLink {
   };
 }
 
+// ---- Code references ----
+
+export type CodeRefProvider = "GITHUB" | "GITLAB";
+export type CodeRefKind = "PR" | "MR" | "COMMIT";
+
+export interface CodeReference {
+  id: string;
+  ticketId: string;
+  provider: CodeRefProvider;
+  kind: CodeRefKind;
+  repo: string;
+  number: number | null;
+  sha: string | null;
+  url: string;
+  title: string | null;
+  addedById: string | null;
+  addedBy: UserRef | null;
+  createdAt: string;
+}
+
+/** Element of GET /api/code-refs (the flat report). */
+export interface CodeRefReportItem extends CodeReference {
+  issue: {
+    id: string;
+    key: string;
+    status: Status;
+    assignee: UserRef | null;
+    module: string | null;
+  };
+}
+
 // ---- Issue list item (GET /api/issues array element) ----
 
 export interface IssueListItem {
@@ -150,6 +182,7 @@ export interface IssueDetail
   activity: Activity[];
   labels: Label[];
   links: IssueLink[];
+  codeRefs: CodeReference[];
 }
 
 // ---- Auth ----

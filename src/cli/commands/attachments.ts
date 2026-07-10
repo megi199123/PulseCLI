@@ -1,5 +1,5 @@
 // ============================================================
-// PulseCLI — src/commands/attachments.ts
+// PulseCLI — src/cli/commands/attachments.ts
 // Commands:
 //   pulse attachment list <issueKeyOrId>    — list attachments for an issue
 //   pulse attachment add <issueKeyOrId> <filePath>  — upload a file
@@ -12,9 +12,9 @@ import path from "node:path";
 import * as readline from "node:readline";
 import { Command } from "commander";
 import { printJson, printTable, ok, info } from "../output.js";
-import { formatDate, resolveIssueId } from "../util.js";
-import type { CliContext } from "../index.js";
-import type { Attachment, IssueDetail } from "../types.js";
+import { formatDate, resolveIssueId } from "../../core/util.js";
+import type { CliContext } from "../../core/context.js";
+import type { Attachment, IssueDetail } from "../../core/types.js";
 
 // ---- Constants ----
 

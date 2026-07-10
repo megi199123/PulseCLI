@@ -1,5 +1,5 @@
 // ============================================================
-// PulseCLI — src/commands/links.ts
+// PulseCLI — src/cli/commands/links.ts
 // Commands:
 //   pulse link list <issueKeyOrId>                        — list links
 //   pulse link add <issueKeyOrId> <targetKeyOrId> <type>  — add a link
@@ -9,9 +9,9 @@
 import * as readline from "node:readline";
 import { Command } from "commander";
 import { printJson, printTable, ok, info } from "../output.js";
-import { truncate, resolveIssueId } from "../util.js";
-import type { CliContext } from "../index.js";
-import type { IssueLink, LinkType } from "../types.js";
+import { truncate, resolveIssueId } from "../../core/util.js";
+import type { CliContext } from "../../core/context.js";
+import type { IssueLink, LinkType } from "../../core/types.js";
 
 // ---- Helpers ----
 

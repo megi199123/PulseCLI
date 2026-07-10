@@ -1,5 +1,5 @@
 // ============================================================
-// PulseCLI — src/commands/issues.ts
+// PulseCLI — src/cli/commands/issues.ts
 // Commands:
 //   pulse issues list     — filtered issue list
 //   pulse issue view      — detail view
@@ -12,14 +12,15 @@ import fs from "node:fs";
 import * as readline from "node:readline";
 import { Command } from "commander";
 import { printJson, printTable, ok, info } from "../output.js";
-import { truncate, formatDate, parseDueDate } from "../util.js";
-import { resolveUserId, resolveLabelId, resolveModuleSlug } from "./lookups.js";
-import type { CliContext } from "../index.js";
+import { truncate, formatDate, parseDueDate } from "../../core/util.js";
+import { resolveUserId, resolveLabelId, resolveModuleSlug } from "../../core/lookups.js";
+import { formatCodeRefLabel } from "./code-refs.js";
+import type { CliContext } from "../../core/context.js";
 import type {
   IssueListItem,
   IssueDetail,
   Category,
-} from "../types.js";
+} from "../../core/types.js";
 
 // ---- Readline confirm helper ----
 
@@ -59,7 +60,7 @@ export function register(program: Command, ctx: CliContext): void {
     .description("List issues with optional filters")
     .option("--category <category>", "Filter by category (TASK|BUG)")
     .option("--priority <priority>", "Filter by priority (LOW|MEDIUM|HIGH|CRITICAL)")
-    .option("--status <status>", "Filter by status (OPEN|IN_PROGRESS|STAGING|IN_REVIEW|RESOLVED|CLOSED)")
+    .option("--status <status>", "Filter by status (BACKLOG|OPEN|IN_PROGRESS|STAGING|IN_REVIEW|RESOLVED|CLOSED)")
     .option("--module <module>", "Filter by module slug (see `pulse modules list`)")
     .option("--assignee <id>", "Filter by assignee id or name")
     .option("--reporter <id>", "Filter by reporter id or name")
@@ -265,6 +266,26 @@ export function register(program: Command, ctx: CliContext): void {
         console.log("");
       }
 
+      // Code references
+      if (detail.codeRefs.length > 0) {
+        console.log("Code:");
+        printTable(
+          detail.codeRefs.map((c) => ({
+            ref: formatCodeRefLabel(c),
+            title: truncate(c.title ?? "", 40),
+            addedBy: c.addedBy?.name ?? "—",
+            created: formatDate(c.createdAt),
+          })),
+          [
+            { key: "ref", header: "Ref" },
+            { key: "title", header: "Title", width: 40 },
+            { key: "addedBy", header: "Added By" },
+            { key: "created", header: "Created" },
+          ],
+        );
+        console.log("");
+      }
+
       // Comments
       if (detail.comments.length > 0) {
         console.log("Comments:");
@@ -314,6 +335,7 @@ export function register(program: Command, ctx: CliContext): void {
     .option("--description <text>", "Issue description (body text)")
     .option("--description-file <path>", "Read description from a file")
     .requiredOption("--category <category>", "Category: TASK or BUG")
+    .option("--status <status>", "Status (BACKLOG|OPEN|IN_PROGRESS|STAGING|IN_REVIEW|RESOLVED|CLOSED); omitting this yields BACKLOG (the server default, matching the web UI)")
     .option("--priority <priority>", "Priority: LOW|MEDIUM|HIGH|CRITICAL")
     .option("--module <module>", "Module slug (see `pulse modules list`); defaults to the configured default module")
     .option("--assignee <id>", "Assignee user id or name")
@@ -327,6 +349,7 @@ export function register(program: Command, ctx: CliContext): void {
         description?: string;
         descriptionFile?: string;
         category: string;
+        status?: string;
         priority?: string;
         module?: string;
         assignee?: string;
@@ -367,6 +390,7 @@ export function register(program: Command, ctx: CliContext): void {
           description,
           category,
         };
+        if (opts.status) body.status = opts.status.toUpperCase();
         if (opts.priority) body.priority = opts.priority.toUpperCase();
         if (opts.module) body.module = await resolveModuleSlug(ctx.client, opts.module);
         if (assigneeId) body.assigneeId = assigneeId;
@@ -393,7 +417,7 @@ export function register(program: Command, ctx: CliContext): void {
     .option("--description <text>", "New description")
     .option("--description-file <path>", "Read new description from a file")
     .option("--category <category>", "Category: TASK or BUG")
-    .option("--status <status>", "Status (OPEN|IN_PROGRESS|STAGING|IN_REVIEW|RESOLVED|CLOSED)")
+    .option("--status <status>", "Status (BACKLOG|OPEN|IN_PROGRESS|STAGING|IN_REVIEW|RESOLVED|CLOSED)")
     .option("--priority <priority>", "Priority (LOW|MEDIUM|HIGH|CRITICAL)")
     .option("--module <module>", "Module slug to reassign (see `pulse modules list`)")
     .option("--assignee <id>", "Assignee id or name (empty string to unassign)")

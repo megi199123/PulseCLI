@@ -1,5 +1,5 @@
 // ============================================================
-// PulseCLI — src/client.ts
+// PulseCLI — src/core/client.ts
 // HTTP client with cookie-jar persistence.
 // Uses Node built-in fetch, FormData, Blob, File — NO extra deps.
 // ============================================================
@@ -54,6 +54,19 @@ export class PulseClient {
       .join("; ");
   }
 
+  /**
+   * Apply the cookie header and, when configured, an `Authorization: Bearer`
+   * header to a Headers instance. Bearer is sent IN ADDITION TO the cookie
+   * header (never instead of it) so a cookie-only Pulse keeps working.
+   */
+  private applyAuthHeaders(headers: Headers): void {
+    const cookieVal = this.cookieHeader();
+    if (cookieVal) headers.set("Cookie", cookieVal);
+    if (this.config.token) {
+      headers.set("Authorization", `Bearer ${this.config.token}`);
+    }
+  }
+
   mergeSetCookies(res: Response): void {
     // getSetCookie() is available in Node 18.14+ / v22
     const setCookies: string[] = res.headers.getSetCookie
@@ -97,11 +110,8 @@ export class PulseClient {
       ? urlOrPath
       : `${this.config.baseUrl}${urlOrPath}`;
 
-    const cookieVal = this.cookieHeader();
     const headers = new Headers(init.headers as HeadersInit | undefined);
-    if (cookieVal) {
-      headers.set("Cookie", cookieVal);
-    }
+    this.applyAuthHeaders(headers);
 
     const res = await fetch(url, { ...init, headers });
     this.mergeSetCookies(res);
@@ -137,8 +147,7 @@ export class PulseClient {
     }
 
     const headers = new Headers();
-    const cookieVal = this.cookieHeader();
-    if (cookieVal) headers.set("Cookie", cookieVal);
+    this.applyAuthHeaders(headers);
 
     let body: string | undefined;
     if (opts.jsonBody !== undefined) {
@@ -152,7 +161,12 @@ export class PulseClient {
 
     if (!res.ok) {
       if (res.status === 401) {
-        throw new PulseApiError(401, "Not logged in — run `pulse login`");
+        throw new PulseApiError(
+          401,
+          this.config.token
+            ? "Unauthorized — PULSE_TOKEN is invalid, revoked, or expired"
+            : "Not logged in — run `pulse login`",
+        );
       }
       let message = res.statusText;
       try {
@@ -212,8 +226,7 @@ export class PulseClient {
 
     const url = `${this.config.baseUrl}${apiPath}`;
     const headers = new Headers();
-    const cookieVal = this.cookieHeader();
-    if (cookieVal) headers.set("Cookie", cookieVal);
+    this.applyAuthHeaders(headers);
     // Do NOT set Content-Type manually — let fetch set multipart boundary
 
     const res = await fetch(url, { method: "POST", headers, body: form });
@@ -222,7 +235,12 @@ export class PulseClient {
 
     if (!res.ok) {
       if (res.status === 401) {
-        throw new PulseApiError(401, "Not logged in — run `pulse login`");
+        throw new PulseApiError(
+          401,
+          this.config.token
+            ? "Unauthorized — PULSE_TOKEN is invalid, revoked, or expired"
+            : "Not logged in — run `pulse login`",
+        );
       }
       let message = res.statusText;
       try {
@@ -247,15 +265,19 @@ export class PulseClient {
   ): Promise<{ filename: string }> {
     const url = `${this.config.baseUrl}${apiPath}`;
     const headers = new Headers();
-    const cookieVal = this.cookieHeader();
-    if (cookieVal) headers.set("Cookie", cookieVal);
+    this.applyAuthHeaders(headers);
 
     const res = await fetch(url, { headers });
     this.mergeSetCookies(res);
 
     if (!res.ok) {
       if (res.status === 401) {
-        throw new PulseApiError(401, "Not logged in — run `pulse login`");
+        throw new PulseApiError(
+          401,
+          this.config.token
+            ? "Unauthorized — PULSE_TOKEN is invalid, revoked, or expired"
+            : "Not logged in — run `pulse login`",
+        );
       }
       throw new PulseApiError(res.status, res.statusText);
     }

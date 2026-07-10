@@ -1,10 +1,11 @@
 {
   "name": "pulse-cli",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "bin": {
-    "pulse": "dist/index.js"
+    "pulse": "dist/index.js",
+    "pulse-mcp": "dist/mcp/index.js"
   },
   "engines": {
     "node": ">=18"
@@ -16,7 +17,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "commander": "^12.1.0"
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "commander": "^12.1.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
