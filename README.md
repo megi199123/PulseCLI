@@ -493,10 +493,57 @@ HTTP/auth plumbing with the CLI via `src/core/`.
 | `pulse_code_refs_report` | Flat code-reference report across all issues (joined with issue key/status/assignee/module), filterable by date range/provider/repo, for KPI-style joins. Flags `truncated: true` at the server's 1000-row cap. |
 | `pulse_add_code_ref` | Attach a PR/MR/commit URL to an issue. API errors (403 missing scope, 400 unparseable URL, 409 duplicate) come back as the tool's result text, not a tool failure — read it to see why. |
 
-### Registering it
+### Install it (teammates start here)
+
+There is nothing to deploy — `pulse-mcp` is a **local adapter**. Your MCP
+client spawns it as a child process on demand, it translates tool calls into
+HTTP against the already-deployed Pulse, and it exits with the session. So
+"installing" means: get the binary on your machine, mint a token, register it.
+
+**1. Install** (the `prepare` script builds `dist/` for you):
+
+```bash
+npm install -g git+https://github.com/megi199123/PulseCLI.git
+```
+
+**2. Mint a token** — in Pulse, go to **Settings → API Tokens → New Token**.
+Give it a name, then pick scopes: leave everything unchecked for a read-only
+token, or use **Select all my permissions** to grant exactly what your role
+already allows. Add `CODE_REF_WRITE` if the agent should attach PR/commit
+links to issues. The `pulse_pat_…` string is shown **once** — copy it now.
+
+**3. Register with Claude Code** (`npm root -g` tells you `<npm-root>`):
+
+```bash
+claude mcp add --scope user pulse \
+  -e PULSE_BASE_URL=https://pulse.isi.ph \
+  -e PULSE_TOKEN=pulse_pat_your_token_here \
+  -- node "<npm-root>/pulse-cli/dist/mcp/index.js"
+```
+
+Equivalent hand-edit: add the same `pulse` block to `mcpServers` in
+`~/.claude.json` (Windows: `C:\Users\<you>\.claude.json`). Use forward
+slashes in the path, or escape backslashes — a mangled path is the most
+common cause of "failed to connect".
+
+**4. Verify** — start a *new* Claude Code session (servers spawn at session
+start), run `/mcp`, and confirm `pulse` is listed. Then ask it something like
+*"what are my open Pulse issues?"*.
+
+To upgrade later, re-run the install command; the registration path does not
+change. To update your token, edit the `PULSE_TOKEN` value and restart the
+session.
+
+> **Never commit or share a token.** Mint one per person — they are scoped to
+> your own role and revocable from the same Settings page (revocation takes
+> effect on the token's very next request).
+
+### Registering it from the repo
 
 A committed `.mcp.json` at the repo root registers the server for Claude Code
-(and any other MCP client that reads that file):
+(and any other MCP client that reads that file) when a session starts inside
+this repo. Useful when developing PulseCLI itself; teammates should prefer the
+user-scoped registration above.
 
 ```json
 {
@@ -532,11 +579,15 @@ see Authentication below for how to supply one.
    as usual. A startup diagnostic on stderr reports which mode is active
    (stdout is reserved for JSON-RPC, so this never corrupts the protocol).
 
-> Tokens will be mintable from Pulse's **Settings → API Tokens** page once
-> the pulse-api-tokens feature ships server-side. Until then, use the
-> cookie-jar fallback: run `pulse login` once against the target deployment
-> (optionally under a dedicated `PULSE_CONFIG_DIR`), and `pulse-mcp` will
-> pick up that session automatically.
+> Tokens are minted from Pulse's **Settings → API Tokens** page. A token is
+> bound to the deployment that issued it — a token minted on beta will not
+> authenticate against production, so keep `PULSE_TOKEN` and `PULSE_BASE_URL`
+> in step with each other.
+>
+> If you would rather not mint one, the cookie-jar fallback still works: run
+> `pulse login` once against the target deployment (optionally under a
+> dedicated `PULSE_CONFIG_DIR`), and `pulse-mcp` will pick up that session
+> automatically.
 
 ---
 
