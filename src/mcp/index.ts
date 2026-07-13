@@ -17,7 +17,7 @@ import { registerTools } from "./tools.js";
 
 // Mirrors package.json's version (kept in sync manually, same convention as
 // the `-v/--version` string hardcoded in src/cli/index.ts).
-const SERVER_VERSION = "0.2.0";
+const SERVER_VERSION = "0.3.0";
 
 function buildClient(): PulseClient {
   const config = loadConfig();
@@ -30,19 +30,22 @@ function buildClient(): PulseClient {
     config.baseUrl = baseUrlOverride;
   }
 
-  const token = process.env.PULSE_TOKEN;
+  // Token resolution order: PULSE_TOKEN env (explicit override) → token
+  // stored in the config file by `pulse mcp setup` → cookie-jar fallback.
+  const token = process.env.PULSE_TOKEN ?? config.token;
   if (token) {
     // Bearer auth: never touch the cookie jar / config file on disk.
     return new PulseClient({ ...config, token }, { persist: false });
   }
 
-  // No PULSE_TOKEN — fall back to the cookie-jar session left behind by
+  // No token anywhere — fall back to the cookie-jar session left behind by
   // `pulse login` (~/.pulse-cli or PULSE_CONFIG_DIR). This path DOES persist
   // (refreshed cookies get written back), matching normal CLI behavior.
   console.error(
-    "[pulse-mcp] PULSE_TOKEN is not set — falling back to the cookie-jar " +
-      "session from `pulse login`. Set PULSE_TOKEN to run this server with a " +
-      "dedicated, non-persisting bearer session instead.",
+    "[pulse-mcp] No API token found (PULSE_TOKEN env or config) — falling " +
+      "back to the cookie-jar session from `pulse login`. Run `pulse mcp " +
+      "setup` to mint + store a token for a dedicated, non-persisting " +
+      "bearer session instead.",
   );
   return new PulseClient(config);
 }

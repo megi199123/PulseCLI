@@ -216,6 +216,18 @@ pulse logout
 
 ---
 
+### MCP
+
+```bash
+# One-shot interactive onboarding for the pulse-mcp server:
+# login → mint token → store in config → register with Claude Code → verify
+pulse mcp setup
+pulse mcp setup --url <url> --email <e> --password <p> \
+  [--token-name <name>] [--read-only] [--no-register]
+```
+
+---
+
 ### Issues — list
 
 ```bash
@@ -497,46 +509,80 @@ HTTP/auth plumbing with the CLI via `src/core/`.
 
 There is nothing to deploy — `pulse-mcp` is a **local adapter**. Your MCP
 client spawns it as a child process on demand, it translates tool calls into
-HTTP against the already-deployed Pulse, and it exits with the session. So
-"installing" means: get the binary on your machine, mint a token, register it.
+HTTP against the already-deployed Pulse, and it exits with the session.
+Installing is two commands:
 
-**1. Install** (the `prepare` script builds `dist/` for you):
+**1. Install** (the `prepare` script builds `dist/` and puts both the `pulse`
+and `pulse-mcp` bins on your PATH):
 
 ```bash
 npm install -g git+https://github.com/megi199123/PulseCLI.git
 ```
 
-**2. Mint a token** — in Pulse, go to **Settings → API Tokens → New Token**.
-Give it a name, then pick scopes: leave everything unchecked for a read-only
-token, or use **Select all my permissions** to grant exactly what your role
-already allows. Add `CODE_REF_WRITE` if the agent should attach PR/commit
-links to issues. The `pulse_pat_…` string is shown **once** — copy it now.
+**2. Run the setup wizard:**
 
-**3. Register with Claude Code** (`npm root -g` tells you `<npm-root>`):
+```bash
+pulse mcp setup
+```
+
+The wizard walks you through everything — no manual token handling:
+
+1. Asks which Pulse deployment to target (defaults to the live one).
+2. Logs you in with your normal Pulse email + password.
+3. **Mints an API token for you** (token minting is cookie-session-only by
+   design, and the wizard just logged you in — so it can call the endpoint
+   on your behalf; the raw token never passes through your clipboard).
+   Default name: `pulse-mcp on <hostname>`; asks whether to grant the
+   `CODE_REF_WRITE` scope (yes, unless you want a read-only agent).
+4. Stores the token in `~/.pulse-cli/config.json`, where `pulse-mcp` picks
+   it up automatically — the registration command needs **no env flags**.
+5. Registers the server with Claude Code for you
+   (`claude mcp add --scope user pulse -- pulse-mcp`), or prints that
+   command if the `claude` CLI isn't on your PATH.
+6. Verifies the token end-to-end with a cookie-free bearer request.
+
+**3. Verify** — start a *new* Claude Code session (servers spawn at session
+start), run `/mcp`, and confirm `pulse` is listed. Then ask it something like
+*"what are my open Pulse issues?"*.
+
+Non-interactive / scripted use is supported too:
+
+```bash
+pulse mcp setup --url https://pulse.isi.ph --email you@isi.ph --password ... \
+  --token-name "pulse-mcp laptop" --read-only --no-register
+```
+
+To upgrade later, re-run the install command; the registration does not
+change. To rotate your token, revoke the old one in **Settings → API Tokens**
+and re-run `pulse mcp setup` (it overwrites the stored token).
+
+> **Never commit or share a token.** Mint one per person — they are scoped to
+> your own role and revocable from the Settings → API Tokens page (revocation
+> takes effect on the token's very next request). The stored token lives in
+> your user profile's `~/.pulse-cli/config.json` alongside your session
+> cookies — same trust level, same file.
+
+<details>
+<summary>Manual registration (no wizard)</summary>
+
+Mint a token yourself in Pulse under **Settings → API Tokens → New Token**
+(the `pulse_pat_…` string is shown **once**), then either bake it into the
+registration:
 
 ```bash
 claude mcp add --scope user pulse \
   -e PULSE_BASE_URL=https://pulse.isi.ph \
   -e PULSE_TOKEN=pulse_pat_your_token_here \
-  -- node "<npm-root>/pulse-cli/dist/mcp/index.js"
+  -- pulse-mcp
 ```
 
-Equivalent hand-edit: add the same `pulse` block to `mcpServers` in
-`~/.claude.json` (Windows: `C:\Users\<you>\.claude.json`). Use forward
-slashes in the path, or escape backslashes — a mangled path is the most
-common cause of "failed to connect".
+or hand-edit `mcpServers` in `~/.claude.json` (Windows:
+`C:\Users\<you>\.claude.json`) with the same block. If you point at
+`dist/mcp/index.js` directly instead of the `pulse-mcp` bin, use forward
+slashes in the path — a backslash-mangled path is the most common cause of
+"failed to connect".
 
-**4. Verify** — start a *new* Claude Code session (servers spawn at session
-start), run `/mcp`, and confirm `pulse` is listed. Then ask it something like
-*"what are my open Pulse issues?"*.
-
-To upgrade later, re-run the install command; the registration path does not
-change. To update your token, edit the `PULSE_TOKEN` value and restart the
-session.
-
-> **Never commit or share a token.** Mint one per person — they are scoped to
-> your own role and revocable from the same Settings page (revocation takes
-> effect on the token's very next request).
+</details>
 
 ### Registering it from the repo
 
@@ -567,17 +613,22 @@ see Authentication below for how to supply one.
 `pulse-mcp` picks auth in this order, same precedence the underlying
 `PulseClient` applies everywhere:
 
-1. **`PULSE_TOKEN` (bearer, preferred)** — if set in the server process's
-   environment, every request sends `Authorization: Bearer <token>` and the
-   session is never persisted to disk (no cookie-jar reads or writes). This
-   is the right mode for a server registered via the committed `.mcp.json`:
-   set `PULSE_TOKEN` in your own shell or MCP client's env config, never in
-   the file itself.
-2. **Cookie-jar fallback** — if `PULSE_TOKEN` is unset, `pulse-mcp` falls
-   back to the session left behind by `pulse login` (`~/.pulse-cli` or
-   `PULSE_CONFIG_DIR`), and that session's cookies ARE refreshed/persisted
-   as usual. A startup diagnostic on stderr reports which mode is active
-   (stdout is reserved for JSON-RPC, so this never corrupts the protocol).
+1. **`PULSE_TOKEN` (bearer, explicit override)** — if set in the server
+   process's environment, every request sends `Authorization: Bearer <token>`
+   and the session is never persisted to disk (no cookie-jar reads or
+   writes). This is the right mode for a server registered via the committed
+   `.mcp.json`: set `PULSE_TOKEN` in your own shell or MCP client's env
+   config, never in the file itself.
+2. **Stored token (bearer, what `pulse mcp setup` uses)** — if `PULSE_TOKEN`
+   is unset but a `token` is present in the config file (`~/.pulse-cli` or
+   `PULSE_CONFIG_DIR`), it is used the same way: bearer header,
+   non-persisting session. This is what the setup wizard writes, and it is
+   why the wizard's registration command needs no `-e` flags.
+3. **Cookie-jar fallback** — with no token anywhere, `pulse-mcp` falls
+   back to the session left behind by `pulse login` (same config dir), and
+   that session's cookies ARE refreshed/persisted as usual. A startup
+   diagnostic on stderr reports which mode is active (stdout is reserved
+   for JSON-RPC, so this never corrupts the protocol).
 
 > Tokens are minted from Pulse's **Settings → API Tokens** page. A token is
 > bound to the deployment that issued it — a token minted on beta will not
