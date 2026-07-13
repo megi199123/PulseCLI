@@ -15,6 +15,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "prepack": "node -e 0",
     "dev": "tsx src/index.ts",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit"
