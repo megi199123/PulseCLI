@@ -4,7 +4,7 @@
       "type": "stdio",
       "command": "node",
       "args": ["C:\\Workspace\\Git\\PulseCLI\\dist\\mcp\\index.js"],
-      "env": { "PULSE_BASE_URL": "https://pulse.isi.ph" }
+      "env": { "PULSE_BASE_URL": "http://localhost:3000" }
     }
   }
 }

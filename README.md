@@ -18,7 +18,7 @@ npm install && npm run build && npm link
 
 # 2. Point at a Pulse instance and log in
 pulse config set-url http://localhost:3000
-pulse login --email admin@pulse.local --password admin123
+pulse login --email you@example.com --password '<your-password>'
 
 # 3. Read
 pulse issues list --status OPEN --limit 10        # human-readable table
@@ -143,7 +143,7 @@ A launcher script can set this automatically (see the live deployment's
 ### Local dev defaults
 
 - Base URL: `http://localhost:3000`
-- Seed admin credentials: `admin@pulse.local` / `admin123`
+- Seed admin credentials: whatever your Pulse database seed creates
 
 ---
 
@@ -152,13 +152,13 @@ A launcher script can set this automatically (see the live deployment's
 ### Login
 
 ```bash
-pulse login --email admin@pulse.local --password admin123
+pulse login --email you@example.com --password '<your-password>'
 ```
 
 Or use environment variables (useful for CI/scripts):
 
 ```bash
-PULSE_EMAIL=admin@pulse.local PULSE_PASSWORD=admin123 pulse login
+PULSE_EMAIL=you@example.com PULSE_PASSWORD='<your-password>' pulse login
 ```
 
 Or omit the flags for an interactive prompt.
@@ -500,11 +500,39 @@ client spawns it as a child process on demand, it translates tool calls into
 HTTP against the already-deployed Pulse, and it exits with the session. So
 "installing" means: get the binary on your machine, mint a token, register it.
 
-**1. Install** (the `prepare` script builds `dist/` for you):
+**0. Get repo access** — this repository is **private**. Ask Jo to add you as
+a collaborator first, and make sure `git` on your machine is authenticated to
+GitHub as that account (e.g. `gh auth login`, or a credential manager that has
+your GitHub login). Without access, the install below fails with a 404/auth
+error at the clone step.
+
+**1. Install.** The built `dist/` is committed, so no build step is needed
+either way. Use the clone + link method — it is the reliable path on every
+Node/npm version:
+
+```bash
+git clone https://github.com/megi199123/PulseCLI.git
+cd PulseCLI
+npm install       # runtime deps only; dist/ is already built
+npm link          # puts `pulse` and `pulse-mcp` on your PATH
+```
+
+<details>
+<summary>One-liner alternative (may fail on some Node/npm versions)</summary>
 
 ```bash
 npm install -g git+https://github.com/megi199123/PulseCLI.git
 ```
+
+Convenient, but npm's git-dependency install is unreliable on some setups
+(notably Node 24 + npm 11 on Windows): it can leave a broken install whose
+`pulse` bin errors with `Cannot find module …/dist/index.js`. If that happens,
+`npm uninstall -g pulse-cli` and use the clone + link method above instead.
+</details>
+
+> Contributor note: because `dist/` is committed, run `npm run build` and
+> commit the result whenever you change `src/` — otherwise installs ship stale
+> output.
 
 **2. Mint a token** — in Pulse, go to **Settings → API Tokens → New Token**.
 Give it a name, then pick scopes: leave everything unchecked for a read-only
@@ -512,27 +540,32 @@ token, or use **Select all my permissions** to grant exactly what your role
 already allows. Add `CODE_REF_WRITE` if the agent should attach PR/commit
 links to issues. The `pulse_pat_…` string is shown **once** — copy it now.
 
-**3. Register with Claude Code** (`npm root -g` tells you `<npm-root>`):
+**3. Register with Claude Code.** After `npm link`, the `pulse-mcp` bin is on
+your PATH, so register it by name — no absolute path to get wrong:
 
 ```bash
 claude mcp add --scope user pulse \
-  -e PULSE_BASE_URL=https://pulse.isi.ph \
+  -e PULSE_BASE_URL=https://pulse.example.com \
   -e PULSE_TOKEN=pulse_pat_your_token_here \
-  -- node "<npm-root>/pulse-cli/dist/mcp/index.js"
+  -- pulse-mcp
 ```
 
 Equivalent hand-edit: add the same `pulse` block to `mcpServers` in
-`~/.claude.json` (Windows: `C:\Users\<you>\.claude.json`). Use forward
-slashes in the path, or escape backslashes — a mangled path is the most
-common cause of "failed to connect".
+`~/.claude.json` (Windows: `C:\Users\<you>\.claude.json`).
+
+> If you installed some other way and `pulse-mcp` is not on your PATH, point
+> the command at the entry point directly instead: `-- node
+> "<path>/dist/mcp/index.js"` (`npm root -g` gives you `<npm-root>` for a
+> global install). On Windows use forward slashes or escape backslashes — a
+> mangled path is the most common cause of "failed to connect".
 
 **4. Verify** — start a *new* Claude Code session (servers spawn at session
 start), run `/mcp`, and confirm `pulse` is listed. Then ask it something like
 *"what are my open Pulse issues?"*.
 
-To upgrade later, re-run the install command; the registration path does not
-change. To update your token, edit the `PULSE_TOKEN` value and restart the
-session.
+To upgrade later, `git pull` in your clone (the committed `dist/` updates with
+it); the registration does not change. To update your token, edit the
+`PULSE_TOKEN` value and restart the session.
 
 > **Never commit or share a token.** Mint one per person — they are scoped to
 > your own role and revocable from the same Settings page (revocation takes
@@ -552,7 +585,7 @@ user-scoped registration above.
       "type": "stdio",
       "command": "node",
       "args": ["C:\\Workspace\\Git\\PulseCLI\\dist\\mcp\\index.js"],
-      "env": { "PULSE_BASE_URL": "https://pulse.isi.ph" }
+      "env": { "PULSE_BASE_URL": "http://localhost:3000" }
     }
   }
 }

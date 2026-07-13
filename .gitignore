@@ -1,8 +1,9 @@
 # Dependencies
 node_modules/
 
-# Build output
-dist/
+# Build output — dist/ is intentionally COMMITTED so `npm install -g git+https://…`
+# works without a build step (npm's git-dep prepare is unreliable on Windows).
+# Run `npm run build` and commit dist/ whenever src/ changes.
 
 # Local overrides / secrets
 *.local
