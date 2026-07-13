@@ -9,7 +9,7 @@
 Two ways to drive [Atlas Pulse](https://github.com/megi199123/atlas) — the task tracker built for Atlas ERP — without the web UI:
 
 - **`pulse-mcp` — an MCP server** (start here for AI agents). An MCP-aware client such as Claude Code spawns it and calls Pulse as native tools: search issues, read full detail, resolve lookups, attach code references. See [MCP server](#mcp-server-pulse-mcp).
-- **`pulse` — a scriptable CLI** for terminals, scripts, and CI, with `--json` on every command. See [CLI quick start](#cli-quick-start).
+- **`pulse` — a scriptable CLI** (optional) for terminals, scripts, and CI, with `--json` on every command. See [CLI quick start](#cli-quick-start).
 
 Both share one HTTP/auth core (`src/core/`) and talk to the same deployed Pulse.
 
@@ -20,7 +20,7 @@ Both share one HTTP/auth core (`src/core/`) and talk to the same deployed Pulse.
 PulseCLI wraps the Atlas Pulse REST API and ships **two interfaces over one shared core** (`src/core/`):
 
 - **`pulse-mcp` — an MCP server.** The primary path for AI agents: an MCP-aware client spawns it and calls Pulse as native tools, with no shell-outs to parse. Read-first, with an opt-in write scope for attaching code references. Jump to [MCP server](#mcp-server-pulse-mcp).
-- **`pulse` — a CLI** for terminals, scripts, and CI. Structured `--json` on every command, no interactive prompts unless needed, consistent exit codes.
+- **`pulse` — a CLI** (optional) for terminals, scripts, and CI. Structured `--json` on every command, no interactive prompts unless needed, consistent exit codes.
 
 Both authenticate the same way — a bearer token (preferred) or a saved cookie session — against the same deployed Pulse.
 
@@ -44,53 +44,28 @@ HTTP/auth plumbing with the CLI via `src/core/`.
 | `pulse_code_refs_report` | Flat code-reference report across all issues (joined with issue key/status/assignee/module), filterable by date range/provider/repo, for KPI-style joins. Flags `truncated: true` at the server's 1000-row cap. |
 | `pulse_add_code_ref` | Attach a PR/MR/commit URL to an issue. API errors (403 missing scope, 400 unparseable URL, 409 duplicate) come back as the tool's result text, not a tool failure — read it to see why. |
 
-### Install it (teammates start here)
+### Install in 3 steps
 
 There is nothing to deploy — `pulse-mcp` is a **local adapter**. Your MCP
-client spawns it as a child process on demand, it translates tool calls into
-HTTP against the already-deployed Pulse, and it exits with the session. So
-"installing" means: get the binary on your machine, mint a token, register it.
+client spawns it on demand, it translates tool calls into HTTP against the
+already-deployed Pulse, and it exits with the session. All you need is
+**Node.js 18+** (and the `claude` CLI if you register with Claude Code).
 
-**0. Prerequisites** — Node.js 18+, and the `claude` CLI if you'll register
-with Claude Code. The repository is public, so there's nothing to request —
-the clone below just works.
-
-**1. Install.** The built `dist/` is committed, so no build step is needed
-either way. Use the clone + link method — it is the reliable path on every
-Node/npm version:
+**1. Install** — one command; no git, no clone, no build (`dist/` ships
+prebuilt in the repo):
 
 ```bash
-git clone https://github.com/megi199123/PulseCLI.git
-cd PulseCLI
-npm install       # runtime deps only; dist/ is already built
-npm link          # puts `pulse` and `pulse-mcp` on your PATH
+npm install -g https://github.com/megi199123/PulseCLI/archive/refs/heads/main.tar.gz
 ```
 
-<details>
-<summary>One-liner alternative (may fail on some Node/npm versions)</summary>
-
-```bash
-npm install -g git+https://github.com/megi199123/PulseCLI.git
-```
-
-Convenient, but npm's git-dependency install is unreliable on some setups
-(notably Node 24 + npm 11 on Windows): it can leave a broken install whose
-`pulse` bin errors with `Cannot find module …/dist/index.js`. If that happens,
-`npm uninstall -g pulse-cli` and use the clone + link method above instead.
-</details>
-
-> Contributor note: because `dist/` is committed, run `npm run build` and
-> commit the result whenever you change `src/` — otherwise installs ship stale
-> output.
+This puts `pulse-mcp` (and the optional `pulse` CLI) on your PATH.
 
 **2. Mint a token** — in Pulse, go to **Settings → API Tokens → New Token**.
-Give it a name, then pick scopes: leave everything unchecked for a read-only
-token, or use **Select all my permissions** to grant exactly what your role
-already allows. Add `CODE_REF_WRITE` if the agent should attach PR/commit
-links to issues. The `pulse_pat_…` string is shown **once** — copy it now.
+Leave scopes unchecked for a read-only token, or tick `CODE_REF_WRITE` if the
+agent should attach PR/commit links to issues. Copy the `pulse_pat_…` string
+now — it is shown **once**.
 
-**3. Register with Claude Code.** After `npm link`, the `pulse-mcp` bin is on
-your PATH, so register it by name — no absolute path to get wrong:
+**3. Register with Claude Code:**
 
 ```bash
 claude mcp add --scope user pulse \
@@ -99,26 +74,48 @@ claude mcp add --scope user pulse \
   -- pulse-mcp
 ```
 
-Equivalent hand-edit: add the same `pulse` block to `mcpServers` in
-`~/.claude.json` (Windows: `C:\Users\<you>\.claude.json`).
+(Other MCP clients: spawn the `pulse-mcp` command with those two env vars —
+same thing.)
 
-> If you installed some other way and `pulse-mcp` is not on your PATH, point
-> the command at the entry point directly instead: `-- node
-> "<path>/dist/mcp/index.js"` (`npm root -g` gives you `<npm-root>` for a
-> global install). On Windows use forward slashes or escape backslashes — a
-> mangled path is the most common cause of "failed to connect".
+Done. Start a **new** Claude Code session (servers spawn at session start),
+run `/mcp` to confirm `pulse` is listed, then ask something like *"what are my
+open Pulse issues?"*.
 
-**4. Verify** — start a *new* Claude Code session (servers spawn at session
-start), run `/mcp`, and confirm `pulse` is listed. Then ask it something like
-*"what are my open Pulse issues?"*.
+- **Upgrade:** re-run the step-1 command — it always installs the latest `main`;
+  the registration doesn't change.
+- **Rotate a token:** edit the `PULSE_TOKEN` value in `~/.claude.json`
+  (Windows: `C:\Users\<you>\.claude.json`) and start a new session.
+- **Never commit or share a token.** Mint one per person — tokens are scoped
+  to your own role and revocable from the same Settings page (revocation takes
+  effect on the token's very next request).
 
-To upgrade later, `git pull` in your clone (the committed `dist/` updates with
-it); the registration does not change. To update your token, edit the
-`PULSE_TOKEN` value and restart the session.
+<details>
+<summary>Alternative installs (contributors, or if the one-liner fails)</summary>
 
-> **Never commit or share a token.** Mint one per person — they are scoped to
-> your own role and revocable from the same Settings page (revocation takes
-> effect on the token's very next request).
+Clone + link — the from-source path; still no build step since `dist/` is
+committed:
+
+```bash
+git clone https://github.com/megi199123/PulseCLI.git
+cd PulseCLI
+npm install       # runtime deps only; dist/ is already built
+npm link          # puts `pulse` and `pulse-mcp` on your PATH
+```
+
+Avoid `npm install -g git+https://github.com/megi199123/PulseCLI.git` — npm's
+git-dependency codepath is unreliable on some setups (notably Node 24 + npm 11
+on Windows) and can leave a broken install whose bins error with
+`Cannot find module …/dist/index.js`. The tarball install in step 1 uses a
+different npm codepath and does not have this problem.
+
+If `pulse-mcp` somehow isn't on your PATH, register the entry point directly:
+`-- node "<path>/dist/mcp/index.js"` (`npm root -g` prints the global root).
+On Windows use forward slashes or escape backslashes — a mangled path is the
+most common cause of "failed to connect".
+
+Contributor note: because `dist/` is committed, run `npm run build` and commit
+the result whenever you change `src/` — otherwise installs ship stale output.
+</details>
 
 ### Registering it from the repo
 
@@ -200,9 +197,14 @@ emits 1:1 to `dist/` — `src/x/y.ts` becomes `dist/x/y.js`.
 
 ## CLI quick start
 
+The CLI is **optional** — if you only use the MCP server, you can stop reading
+here. It covers the write operations the MCP server doesn't (create/edit
+issues, comments, attachments, links) for terminals, scripts, and CI.
+
 ```bash
-# 1. Build and (optionally) expose the global `pulse` command
-npm install && npm run build && npm link
+# 1. Install (same one-liner as the MCP server — you already have `pulse`
+#    on your PATH if you followed the MCP install above)
+npm install -g https://github.com/megi199123/PulseCLI/archive/refs/heads/main.tar.gz
 
 # 2. Point at a Pulse instance and log in
 pulse config set-url http://localhost:3000
@@ -227,27 +229,21 @@ pulse link add PULSE-0001 PULSE-0002 BLOCKS
 
 ---
 
-## Install
+## Running from source (contributors)
+
+Only needed when developing PulseCLI itself — users should install with the
+one-liner in the [MCP install](#install-in-3-steps) instead.
 
 ```bash
+git clone https://github.com/megi199123/PulseCLI.git
+cd PulseCLI
 npm install
-npm run build
+npm link          # exposes `pulse` and `pulse-mcp` globally from this clone
 ```
 
-After building, run via:
-
-```bash
-node dist/index.js <command>
-```
-
-### Optional: global `pulse` alias
-
-```bash
-npm link
-pulse <command>
-```
-
-After `npm link`, `pulse` is available anywhere in your shell.
+`dist/` is committed, so nothing needs building until you change `src/` —
+then run `npm run build` and commit the result (installs ship whatever is in
+`dist/`).
 
 ### Development (no build step)
 
