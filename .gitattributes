@@ -1,0 +1,6 @@
+# Keep committed build output as LF in the repo. dist/ is checked in and its
+# bin entrypoints (dist/index.js, dist/mcp/index.js) start with a `#!/usr/bin/env node`
+# shebang — a CRLF there breaks execution on macOS/Linux. Pin LF regardless of
+# each contributor's core.autocrlf setting.
+*.js text eol=lf
+*.ts text eol=lf

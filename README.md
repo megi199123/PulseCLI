@@ -506,20 +506,15 @@ GitHub as that account (e.g. `gh auth login`, or a credential manager that has
 your GitHub login). Without access, the install below fails with a 404/auth
 error at the clone step.
 
-**1. Install** (the `prepare` script builds `dist/` for you):
+**1. Install** — the built `dist/` is committed, so this needs no build step:
 
 ```bash
 npm install -g git+https://github.com/megi199123/PulseCLI.git
 ```
 
-If the install fails with `'tsc' is not recognized` (an npm-on-Windows quirk
-building git dependencies), update this repo first — the fix landed in the
-build script — or fall back to a manual install:
-
-```bash
-git clone https://github.com/megi199123/PulseCLI.git && cd PulseCLI
-npm install && npm run build && npm link
-```
+> Contributor note: because `dist/` is committed, run `npm run build` and
+> commit the result whenever you change `src/` — otherwise a git install ships
+> stale output.
 
 **2. Mint a token** — in Pulse, go to **Settings → API Tokens → New Token**.
 Give it a name, then pick scopes: leave everything unchecked for a read-only
