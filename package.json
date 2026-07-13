@@ -7,6 +7,9 @@
     "pulse": "dist/index.js",
     "pulse-mcp": "dist/mcp/index.js"
   },
+  "files": [
+    "dist"
+  ],
   "engines": {
     "node": ">=18"
   },
