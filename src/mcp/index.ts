@@ -16,8 +16,9 @@ import { PulseClient } from "../core/client.js";
 import { registerTools } from "./tools.js";
 
 // Mirrors package.json's version (kept in sync manually, same convention as
-// the `-v/--version` string hardcoded in src/cli/index.ts).
-const SERVER_VERSION = "0.3.0";
+// the `-v/--version` string hardcoded in src/cli/index.ts, and the
+// SERVER_VERSION constant in src/mcp-http/index.ts).
+const SERVER_VERSION = "0.4.0";
 
 function buildClient(): PulseClient {
   const config = loadConfig();

@@ -640,6 +640,81 @@ see Authentication below for how to supply one.
 > dedicated `PULSE_CONFIG_DIR`), and `pulse-mcp` will pick up that session
 > automatically.
 
+### Remote MCP for claude.ai (`pulse-mcp-gateway`)
+
+`pulse-mcp` above is a **local adapter** — your MCP client spawns it as a
+child process, so it only works for clients that can do that (Claude Code,
+Claude Desktop). Claude web (claude.ai) has no way to spawn a process; it
+connects to MCP servers **remotely** over HTTP via custom connectors. For
+that, PulseCLI ships a second, independent build target:
+`src/mcp-http/index.ts` → `dist/mcp-http/index.js`, a small stateless HTTP
+gateway that speaks the MCP **streamable-HTTP** transport and serves the
+exact same 5 tools, built per-request from the caller's own Pulse API token.
+It shares all of its tool logic with `pulse-mcp` via `src/mcp/tools.ts` — zero
+Pulse changes, zero duplicated tool code.
+
+If you're on Claude Code or Claude Desktop, keep using stdio `pulse-mcp`
+above — the gateway exists only for the remote, HTTP-only claude.ai case.
+
+**How it works:** every request to `/mcp` reads `Authorization: Bearer
+pulse_pat_…`, builds a fresh, non-persisting `PulseClient` with that exact
+token, and forwards tool calls through it. There is no session, no shared
+state between requests, and no config file on disk — a token can never do
+more than what it's scoped for on the Pulse side, because the gateway is a
+dumb pass-through and Pulse enforces scopes on every request.
+
+**Deploy it (one-time, per Jo):**
+
+1. Railway → New Service → Deploy from GitHub repo → `megi199123/PulseCLI` →
+   pick the branch. (Manual/dashboard step — the Railway workspace needs
+   access to the personal GitHub repo first.)
+2. Set the `PULSE_BASE_URL` env var on the service (e.g.
+   `https://pulse.isi.ph`). `PORT` is injected by Railway automatically.
+3. `railway.json` at the repo root supplies the build command (`npm ci &&
+   npm run build`), start command (`node dist/mcp-http/index.js`), and
+   healthcheck path (`/healthz`) — nothing else to configure.
+4. Confirm the healthcheck goes green, then note the public URL (e.g.
+   `https://pulse-mcp-gateway-production.up.railway.app`).
+
+**Connect it from claude.ai:**
+
+1. Mint a personal API token — either `pulse mcp setup` (it stores the token
+   locally too, which is fine) or Pulse → **Settings → API Tokens → New
+   Token**. One token per person; the raw `pulse_pat_…` string is shown once.
+2. In claude.ai: **Settings → Connectors → Add custom connector**.
+3. URL: `https://<your-service>.up.railway.app/mcp`
+4. Under **Advanced settings → Request headers**, add:
+   `Authorization: Bearer pulse_pat_your_token_here`
+5. Save — claude.ai should list the same 5 tools (`pulse_search_issues`,
+   `pulse_get_issue`, `pulse_list_lookups`, `pulse_code_refs_report`,
+   `pulse_add_code_ref`).
+
+Revoking a token in Pulse's Settings → API Tokens page takes effect on that
+token's very next request through the gateway — there is nothing to redeploy.
+
+> **Auth is lazy by design.** The gateway never calls Pulse during
+> `initialize` — a bad or revoked token still gets a normal handshake. The
+> token is only exercised on the first `tools/call`, where an invalid token
+> surfaces as a Pulse 401/unauthorized message in the tool's result text
+> (fails closed, just later than you might expect).
+
+**Smoke-test with curl** (note the `Accept` header — the streamable-HTTP
+transport 406s any POST that doesn't offer both JSON and event-stream):
+
+```bash
+curl -s https://<your-service>.up.railway.app/mcp \
+  -H "Authorization: Bearer pulse_pat_your_token_here" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+```
+
+**Security:** the gateway never stores or logs tokens — it forwards each
+request's bearer to its own configured `PULSE_BASE_URL` only, and every log
+line is limited to `method path -> status` (plus one startup line). There is
+no `loadConfig()` anywhere under `src/mcp-http/`, so it never touches
+`~/.pulse-cli` or any `PULSE_CONFIG_DIR`.
+
 ---
 
 ## Targeting local vs Railway
