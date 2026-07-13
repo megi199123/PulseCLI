@@ -18,7 +18,7 @@ npm install && npm run build && npm link
 
 # 2. Point at a Pulse instance and log in
 pulse config set-url http://localhost:3000
-pulse login --email admin@pulse.local --password admin123
+pulse login --email you@example.com --password '<your-password>'
 
 # 3. Read
 pulse issues list --status OPEN --limit 10        # human-readable table
@@ -143,7 +143,7 @@ A launcher script can set this automatically (see the live deployment's
 ### Local dev defaults
 
 - Base URL: `http://localhost:3000`
-- Seed admin credentials: `admin@pulse.local` / `admin123`
+- Seed admin credentials: whatever your Pulse database seed creates
 
 ---
 
@@ -152,13 +152,13 @@ A launcher script can set this automatically (see the live deployment's
 ### Login
 
 ```bash
-pulse login --email admin@pulse.local --password admin123
+pulse login --email you@example.com --password '<your-password>'
 ```
 
 Or use environment variables (useful for CI/scripts):
 
 ```bash
-PULSE_EMAIL=admin@pulse.local PULSE_PASSWORD=admin123 pulse login
+PULSE_EMAIL=you@example.com PULSE_PASSWORD='<your-password>' pulse login
 ```
 
 Or omit the flags for an interactive prompt.
@@ -545,7 +545,7 @@ your PATH, so register it by name — no absolute path to get wrong:
 
 ```bash
 claude mcp add --scope user pulse \
-  -e PULSE_BASE_URL=https://pulse.isi.ph \
+  -e PULSE_BASE_URL=https://pulse.example.com \
   -e PULSE_TOKEN=pulse_pat_your_token_here \
   -- pulse-mcp
 ```
@@ -585,7 +585,7 @@ user-scoped registration above.
       "type": "stdio",
       "command": "node",
       "args": ["C:\\Workspace\\Git\\PulseCLI\\dist\\mcp\\index.js"],
-      "env": { "PULSE_BASE_URL": "https://pulse.isi.ph" }
+      "env": { "PULSE_BASE_URL": "http://localhost:3000" }
     }
   }
 }
