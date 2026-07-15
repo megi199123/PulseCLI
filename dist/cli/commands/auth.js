@@ -2,56 +2,10 @@
 // PulseCLI — src/cli/commands/auth.ts
 // Commands: login, logout, whoami, config get, config set-url
 // ============================================================
-import * as readline from "node:readline";
-import { Writable } from "node:stream";
 import { login, getSession } from "../../core/auth-flow.js";
 import { clearSession, setBaseUrl, loadConfig } from "../../core/config.js";
 import { printJson, printTable, ok, info } from "../output.js";
-// ---- Readline helpers ----
-/** Prompt for visible input via readline. */
-function promptVisible(question) {
-    return new Promise((resolve) => {
-        const rl = readline.createInterface({
-            input: process.stdin,
-            output: process.stdout,
-        });
-        rl.question(question, (answer) => {
-            rl.close();
-            resolve(answer);
-        });
-    });
-}
-/**
- * Prompt for hidden (password) input.
- * Mutes stdout output during typing by using a no-op Writable as the rl output.
- * Restores newline after the user presses Enter.
- * Falls back to visible input when stdin is not a TTY (pipe/CI).
- */
-function promptHidden(question) {
-    if (!process.stdin.isTTY) {
-        // Non-interactive: read from pipe visibly
-        return promptVisible(question);
-    }
-    return new Promise((resolve) => {
-        process.stdout.write(question);
-        // Muted writable: accepts writes but prints nothing
-        const muted = new Writable({
-            write(_chunk, _encoding, callback) {
-                callback();
-            },
-        });
-        const rl = readline.createInterface({
-            input: process.stdin,
-            output: muted,
-            terminal: true,
-        });
-        rl.once("line", (answer) => {
-            rl.close();
-            process.stdout.write("\n");
-            resolve(answer);
-        });
-    });
-}
+import { promptVisible, promptHidden } from "../prompt.js";
 // ---- Registrar ----
 export function register(program, ctx) {
     // ---- pulse login ----

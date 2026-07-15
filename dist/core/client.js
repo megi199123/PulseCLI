@@ -164,6 +164,9 @@ export class PulseClient {
     put(apiPath, jsonBody) {
         return this.request("PUT", apiPath, { jsonBody });
     }
+    patch(apiPath, jsonBody) {
+        return this.request("PATCH", apiPath, { jsonBody });
+    }
     del(apiPath) {
         return this.request("DELETE", apiPath);
     }

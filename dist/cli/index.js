@@ -16,6 +16,7 @@ import { register as registerAttachments } from "./commands/attachments.js";
 import { register as registerLinks } from "./commands/links.js";
 import { register as registerComments } from "./commands/comments.js";
 import { register as registerCodeRefs } from "./commands/code-refs.js";
+import { register as registerMcp } from "./commands/mcp.js";
 // ---- UTF-8 console (Windows) ----
 // Node already writes UTF-8, but a legacy Windows console code page (e.g. 437 or
 // 1252) renders it as mojibake (em-dashes/accents in issue data show as "â€"").
@@ -37,7 +38,7 @@ const program = new Command();
 program
     .name("pulse")
     .description("Atlas Pulse CLI — scriptable task tracker interface")
-    .version("0.2.1", "-v, --version")
+    .version("0.4.0", "-v, --version")
     .helpOption("-h, --help", "Display help")
     // Global options — available to every subcommand via optsWithGlobals()
     .option("-j, --json", "Output raw JSON (for agent/script consumers)", false)
@@ -78,6 +79,7 @@ registerAttachments(program, ctx);
 registerLinks(program, ctx);
 registerComments(program, ctx);
 registerCodeRefs(program, ctx);
+registerMcp(program, ctx);
 // ---- Parse and dispatch ----
 try {
     await program.parseAsync(process.argv);
