@@ -20,6 +20,3 @@ npm-debug.log*
 Thumbs.db
 .idea/
 .vscode/
-
-# Local dev MCP registration (absolute paths / internal URL) — do not commit
-.mcp.json
