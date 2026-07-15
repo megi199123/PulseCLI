@@ -1,7 +1,7 @@
 // ============================================================
 // PulseCLI — src/mcp-http/index.ts
 // Stateless streamable-HTTP MCP gateway for remote clients (claude.ai custom
-// connectors). Serves the EXACT SAME 5 tools as the stdio server
+// connectors). Serves the EXACT SAME tools as the stdio server
 // (src/mcp/tools.ts) but builds a fresh PulseClient + McpServer PER REQUEST
 // from the caller's `Authorization: Bearer <pulse_pat_...>` header — no
 // sessions, no disk config, no state shared between requests.
@@ -35,7 +35,7 @@ const SERVER_VERSION = "0.4.0";
 const baseUrl = (process.env.PULSE_BASE_URL ?? "").replace(/\/+$/, "");
 if (!baseUrl) {
   console.error(
-    "[pulse-mcp-gateway] PULSE_BASE_URL is required (e.g. https://pulse.isi.ph) — exiting.",
+    "[pulse-mcp-gateway] PULSE_BASE_URL is required (e.g. https://pulse.example.com) — exiting.",
   );
   process.exit(1);
 }

@@ -18,7 +18,7 @@ npm install && npm run build && npm link
 
 # 2. Point at a Pulse instance and log in
 pulse config set-url http://localhost:3000
-pulse login --email admin@pulse.local --password admin123
+pulse login --email you@example.com --password your-password
 
 # 3. Read
 pulse issues list --status OPEN --limit 10        # human-readable table
@@ -143,7 +143,7 @@ A launcher script can set this automatically (see the live deployment's
 ### Local dev defaults
 
 - Base URL: `http://localhost:3000`
-- Seed admin credentials: `admin@pulse.local` / `admin123`
+- Seed admin credentials: see your Pulse instance's `prisma/seed.ts`
 
 ---
 
@@ -152,13 +152,13 @@ A launcher script can set this automatically (see the live deployment's
 ### Login
 
 ```bash
-pulse login --email admin@pulse.local --password admin123
+pulse login --email you@example.com --password your-password
 ```
 
 Or use environment variables (useful for CI/scripts):
 
 ```bash
-PULSE_EMAIL=admin@pulse.local PULSE_PASSWORD=admin123 pulse login
+PULSE_EMAIL=you@example.com PULSE_PASSWORD=your-password pulse login
 ```
 
 Or omit the flags for an interactive prompt.
@@ -497,6 +497,14 @@ HTTP/auth plumbing with the CLI via `src/core/`.
 
 ### Tools
 
+The stdio `pulse-mcp` server — and the HTTP gateway described below — expose
+**29 tools**: 5 read/report tools plus 24 write tools. Every write tool is
+permission-gated by the calling token's scopes ∩ the user's Pulse role, and
+requires a Pulse deployment whose API routes accept Personal Access Token auth
+for writes (older deployments return the API's 401/403 text instead).
+
+#### Read & report tools
+
 | Tool | Purpose |
 |------|---------|
 | `pulse_search_issues` | Filter/search issues by status, priority, category, module, assignee, text, milestone, or sprint. Results are compacted to key fields and capped at 200. RELEASED-milestone issues are hidden unless `includeReleased: true` (or a `milestone` filter) is passed — same rule as `pulse issues list`. |
@@ -504,6 +512,56 @@ HTTP/auth plumbing with the CLI via `src/core/`.
 | `pulse_list_lookups` | Reference data for resolving filter/create values: `modules`, `users`, `labels`, `milestones`, or `sprints`. |
 | `pulse_code_refs_report` | Flat code-reference report across all issues (joined with issue key/status/assignee/module), filterable by date range/provider/repo, for KPI-style joins. Flags `truncated: true` at the server's 1000-row cap. |
 | `pulse_add_code_ref` | Attach a PR/MR/commit URL to an issue. API errors (403 missing scope, 400 unparseable URL, 409 duplicate) come back as the tool's result text, not a tool failure — read it to see why. |
+
+#### Write tools — issues
+
+| Tool | Purpose |
+|------|---------|
+| `pulse_update_issue` | Update fields on an existing issue — title, description, category, status, priority, module, assignee, milestone, sprint, due/dev/EUS dates. Does **not** set labels (use `pulse_set_issue_labels`); module cannot be cleared, only reassigned. |
+| `pulse_create_issue` | Create a new issue (`title`/`description`/`category` required). New issues always start at `BACKLOG` — there is **no `status` field on create**; move it afterward with `pulse_update_issue`. |
+| `pulse_add_comment` | Add a comment to an issue — plain text is auto-wrapped in `<p>`, or pass Tiptap HTML directly. |
+| `pulse_set_issue_labels` | Replace an issue's full label set. This is a full REPLACE, not additive — pass `[]` to clear all labels. |
+| `pulse_link_issues` | Link two issues (`RELATED`, `BLOCKS`, `BLOCKED_BY`, `DUPLICATES`, `DUPLICATED_BY`). |
+| `pulse_unlink_issue` | Remove a link from an issue by link id. |
+| `pulse_set_assignee` | Set or clear an issue's assignee via the dedicated assignment endpoint (gated on `ISSUE_ASSIGN`, separate from general edit permission). Pass `""` to unassign. |
+| `pulse_watch_issue` | Subscribe the authenticated user/token to an issue's notifications. Idempotent. |
+| `pulse_unwatch_issue` | Unsubscribe from an issue's notifications. Idempotent. |
+| `pulse_move_issue` | Move an issue to a different module, re-homing it under a new key prefix (the old key stops resolving); optionally reassigns the reporter in the same call. |
+
+#### Write tools — planning
+
+| Tool | Purpose |
+|------|---------|
+| `pulse_create_milestone` | Create a milestone (`name`/`targetDate`/`module` required). Status defaults to `PLANNED`; EUS lead defaults to the authenticated user. |
+| `pulse_update_milestone` | Update milestone fields. `targetDate` and `module` cannot be cleared, only reassigned; `labels` is a full REPLACE. |
+| `pulse_delete_milestone` | Delete a milestone permanently. Issues/sprints referencing it are **not** deleted — their `milestoneId` is cleared. |
+| `pulse_create_sprint` | Create a sprint (`name`/`startDate`/`endDate` required; `module`/`milestone` optional). |
+| `pulse_update_sprint` | Update sprint fields. `startDate`/`endDate` cannot be cleared, only reassigned; `labels` is a full REPLACE. |
+| `pulse_delete_sprint` | Delete a sprint permanently. Issues referencing it are **not** deleted — their `sprintId` is cleared. |
+| `pulse_add_sprint_issues` | Add one or more issues to a sprint. The underlying Pulse API takes one ticket per call, so this tool loops per issue and returns a **per-issue result** — one failure doesn't abort the batch. A `BACKLOG` issue added to a sprint is auto-promoted to `OPEN`. |
+| `pulse_remove_sprint_issue` | Remove a single issue from a sprint (clears its `sprintId`; the issue itself is untouched). |
+| `pulse_create_module` | Create a module (admin-level config, not a project entity). Requires `slug`, `label`, `inkHex`, `tintHex`, **and `prefix`** (the issue-key prefix, e.g. `PULSE`) — all five are mandatory. |
+| `pulse_update_module` | Update module fields (label/colors/prefix/sortOrder/isActive/isDefault/status). `slug` itself is not patchable. |
+| `pulse_delete_module` | Delete a module. Blocked with 409 if any issue, milestone, or sprint still references it. |
+
+#### Write tools — misc
+
+| Tool | Purpose |
+|------|---------|
+| `pulse_create_feedback` | Submit product feedback (feature request / bug / nice-to-have) — a lighter-weight surface than a full issue. |
+| `pulse_start_standup` | Start a new daily-standup session for a date, paging through enabled modules. |
+| `pulse_get_changelog` | Fetch the Pulse product changelog via `/api/changelog` — needs a Pulse server that has the companion write-endpoints applied, or expect a 404. |
+
+> **Most write tools are permission-gated.** Each checks the calling token's
+> scopes against the user's role for that specific action (e.g.
+> `ISSUE_EDIT_OWN`/`ISSUE_EDIT_ANY`, `ISSUE_ASSIGN`, `ISSUE_CREATE`,
+> `COMMENT_CREATE`, `MILESTONE_MANAGE`, `SPRINT_MANAGE`, `MODULE_MANAGE`,
+> `FEEDBACK_CREATE`, `STANDUP_MANAGE`). The exceptions are issue **links**
+> (`pulse_link_issues`/`pulse_unlink_issue`) and **watch/unwatch**
+> (`pulse_watch_issue`/`pulse_unwatch_issue`), which the current backend gates
+> on authentication only — any valid token may call them. When a gated action
+> isn't allowed, the Pulse API's `Forbidden`-style message comes back as the
+> tool's result text, not a tool failure — read it to see why.
 
 ### Install it (teammates start here)
 
@@ -548,7 +606,7 @@ start), run `/mcp`, and confirm `pulse` is listed. Then ask it something like
 Non-interactive / scripted use is supported too:
 
 ```bash
-pulse mcp setup --url https://pulse.isi.ph --email you@isi.ph --password ... \
+pulse mcp setup --url https://pulse.example.com --email you@example.com --password ... \
   --token-name "pulse-mcp laptop" --read-only --no-register
 ```
 
@@ -571,7 +629,7 @@ registration:
 
 ```bash
 claude mcp add --scope user pulse \
-  -e PULSE_BASE_URL=https://pulse.isi.ph \
+  -e PULSE_BASE_URL=https://pulse.example.com \
   -e PULSE_TOKEN=pulse_pat_your_token_here \
   -- pulse-mcp
 ```
@@ -586,7 +644,7 @@ slashes in the path — a backslash-mangled path is the most common cause of
 
 ### Registering it from the repo
 
-A committed `.mcp.json` at the repo root registers the server for Claude Code
+A `.mcp.json` at the repo root registers the server for Claude Code
 (and any other MCP client that reads that file) when a session starts inside
 this repo. Useful when developing PulseCLI itself; teammates should prefer the
 user-scoped registration above.
@@ -597,15 +655,15 @@ user-scoped registration above.
     "pulse": {
       "type": "stdio",
       "command": "node",
-      "args": ["C:\\Workspace\\Git\\PulseCLI\\dist\\mcp\\index.js"],
-      "env": { "PULSE_BASE_URL": "https://pulse.isi.ph" }
+      "args": ["/absolute/path/to/PulseCLI/dist/mcp/index.js"],
+      "env": { "PULSE_BASE_URL": "https://pulse.example.com" }
     }
   }
 }
 ```
 
 Build first (`npm run build`) — the entry point is `dist/mcp/index.js`, not
-source. `.mcp.json` is committed, so it intentionally carries **no token** —
+source. `.mcp.json` intentionally carries **no token** —
 see Authentication below for how to supply one.
 
 ### Authentication
@@ -649,7 +707,7 @@ connects to MCP servers **remotely** over HTTP via custom connectors. For
 that, PulseCLI ships a second, independent build target:
 `src/mcp-http/index.ts` → `dist/mcp-http/index.js`, a small stateless HTTP
 gateway that speaks the MCP **streamable-HTTP** transport and serves the
-exact same 5 tools, built per-request from the caller's own Pulse API token.
+exact same tools (read + write), built per-request from the caller's own Pulse API token.
 It shares all of its tool logic with `pulse-mcp` via `src/mcp/tools.ts` — zero
 Pulse changes, zero duplicated tool code.
 
@@ -669,7 +727,7 @@ dumb pass-through and Pulse enforces scopes on every request.
    pick the branch. (Manual/dashboard step — the Railway workspace needs
    access to the personal GitHub repo first.)
 2. Set the `PULSE_BASE_URL` env var on the service (e.g.
-   `https://pulse.isi.ph`). `PORT` is injected by Railway automatically.
+   `https://pulse.example.com`). `PORT` is injected by Railway automatically.
 3. `railway.json` at the repo root supplies the build command (`npm ci &&
    npm run build`), start command (`node dist/mcp-http/index.js`), and
    healthcheck path (`/healthz`) — nothing else to configure.
@@ -685,9 +743,9 @@ dumb pass-through and Pulse enforces scopes on every request.
 3. URL: `https://<your-service>.up.railway.app/mcp`
 4. Under **Advanced settings → Request headers**, add:
    `Authorization: Bearer pulse_pat_your_token_here`
-5. Save — claude.ai should list the same 5 tools (`pulse_search_issues`,
-   `pulse_get_issue`, `pulse_list_lookups`, `pulse_code_refs_report`,
-   `pulse_add_code_ref`).
+5. Save — claude.ai should list all of PulseCLI's MCP tools (the 5 read/report
+   tools plus the 24 write tools; whether a given write tool succeeds still
+   depends on the token's scopes and the Pulse deployment).
 
 Revoking a token in Pulse's Settings → API Tokens page takes effect on that
 token's very next request through the gateway — there is nothing to redeploy.

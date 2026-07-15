@@ -20,7 +20,7 @@ import { printJson, ok, info } from "../output.js";
 import { promptVisible, promptHidden, promptConfirm } from "../prompt.js";
 import type { CliContext } from "../../core/context.js";
 
-const DEFAULT_LIVE_URL = "https://pulse.isi.ph";
+const DEFAULT_LIVE_URL = "https://pulse.example.com";
 const REGISTER_COMMAND = "claude mcp add --scope user pulse -- pulse-mcp";
 
 interface SetupOptions {

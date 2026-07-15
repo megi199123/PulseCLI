@@ -202,6 +202,10 @@ export class PulseClient {
     return this.request<T>("PUT", apiPath, { jsonBody });
   }
 
+  patch<T>(apiPath: string, jsonBody?: unknown): Promise<T> {
+    return this.request<T>("PATCH", apiPath, { jsonBody });
+  }
+
   del<T>(apiPath: string): Promise<T> {
     return this.request<T>("DELETE", apiPath);
   }
