@@ -1174,6 +1174,39 @@ export function registerTools(server, client) {
         }
     });
     // ===========================================================
+    // pulse_set_standup_notes
+    // ===========================================================
+    server.tool("pulse_set_standup_notes", "Write (overwrite) the free-text notes on a daily-standup session page " +
+        "— the per-module 'diary' entry recording what a module discussed. " +
+        "Pass the page's id (from a standup session's pages, e.g. via " +
+        "pulse_start_standup's response or the active session) and the notes " +
+        "as an HTML string; pass null to clear. Last-write-wins: concurrent " +
+        "edits silently overwrite each other, there is no conflict detection. " +
+        "Auth only (any valid token) — but requires a Pulse server whose notes " +
+        "route accepts token auth; on an older instance expect 401/404. On " +
+        "failure the Pulse API's error message is returned as the result text " +
+        "rather than as a tool failure.", {
+        pageId: z
+            .string()
+            .min(1)
+            .describe("Standup session page id to write notes on (from the session's pages)"),
+        notesHtml: z
+            .string()
+            .nullable()
+            .describe("Notes content as an HTML string; pass null to clear the notes"),
+    }, async ({ pageId, notesHtml }) => {
+        try {
+            const updated = await client.put(`/api/standup/pages/${encodeURIComponent(pageId)}/notes`, { notesHtml });
+            return textResult(updated);
+        }
+        catch (err) {
+            if (err instanceof PulseApiError) {
+                return { content: [{ type: "text", text: err.message }] };
+            }
+            throw err;
+        }
+    });
+    // ===========================================================
     // pulse_get_changelog
     // ===========================================================
     server.tool("pulse_get_changelog", "Fetch the Pulse product changelog. By default returns the current " +

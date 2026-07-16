@@ -89,6 +89,7 @@ for writes (older deployments return the API's 401/403 text instead).
 |------|---------|
 | `pulse_create_feedback` | Submit product feedback (feature request / bug / nice-to-have) — a lighter-weight surface than a full issue. |
 | `pulse_start_standup` | Start a new daily-standup session for a date, paging through enabled modules. |
+| `pulse_set_standup_notes` | Write (overwrite) the free-text "diary" notes on a standup session page. Auth-only, but needs a Pulse server whose notes route accepts token auth, or expect 401/404. |
 | `pulse_get_changelog` | Fetch the Pulse product changelog via `/api/changelog` — needs a Pulse server that has the companion write-endpoints applied, or expect a 404. |
 
 > **Most write tools are permission-gated.** Each checks the calling token's
