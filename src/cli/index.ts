@@ -43,7 +43,7 @@ const program = new Command();
 program
   .name("pulse")
   .description("Atlas Pulse CLI — scriptable task tracker interface")
-  .version("0.4.0", "-v, --version")
+  .version("0.4.1", "-v, --version")
   .helpOption("-h, --help", "Display help")
   // Global options — available to every subcommand via optsWithGlobals()
   .option("-j, --json", "Output raw JSON (for agent/script consumers)", false)

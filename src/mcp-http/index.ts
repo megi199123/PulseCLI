@@ -30,7 +30,7 @@ import { registerTools } from "../mcp/tools.js";
 
 // Mirrors package.json / src/cli/index.ts `.version(...)` / src/mcp/index.ts
 // `SERVER_VERSION` (manual-sync convention — keep all four strings identical).
-const SERVER_VERSION = "0.4.0";
+const SERVER_VERSION = "0.4.1";
 
 const baseUrl = (process.env.PULSE_BASE_URL ?? "").replace(/\/+$/, "");
 if (!baseUrl) {
