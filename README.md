@@ -8,7 +8,7 @@
 
 Two ways to drive [Atlas Pulse](https://github.com/megi199123/atlas) — the task tracker built for Atlas ERP — without the web UI:
 
-- **`pulse-mcp` — an MCP server** (start here for AI agents). An MCP-aware client such as Claude Code spawns it and calls Pulse as native tools: search issues, read full detail, resolve lookups, attach code references. See [MCP server](#mcp-server-pulse-mcp).
+- **`pulse-mcp` — an MCP server** (start here for AI agents). An MCP-aware client such as Claude Code spawns it and calls Pulse as native tools: search and read issues, create/update/delete them, comment, manage milestones, sprints and modules, and attach code references. See [MCP server](#mcp-server-pulse-mcp).
 - **`pulse` — a scriptable CLI** (optional) for terminals, scripts, and CI, with `--json` on every command. See [CLI quick start](#cli-quick-start).
 
 Both share one HTTP/auth core (`src/core/`) and talk to the same deployed Pulse.
@@ -19,7 +19,7 @@ Both share one HTTP/auth core (`src/core/`) and talk to the same deployed Pulse.
 
 PulseCLI wraps the Atlas Pulse REST API and ships **two interfaces over one shared core** (`src/core/`):
 
-- **`pulse-mcp` — an MCP server.** The primary path for AI agents: an MCP-aware client spawns it and calls Pulse as native tools, with no shell-outs to parse. Read-first, with an opt-in write scope for attaching code references. Jump to [MCP server](#mcp-server-pulse-mcp).
+- **`pulse-mcp` — an MCP server.** The primary path for AI agents: an MCP-aware client spawns it and calls Pulse as native tools, with no shell-outs to parse. 32 tools — 5 read/report plus 27 write — with every write gated by the calling token's scopes. Jump to [MCP server](#mcp-server-pulse-mcp).
 - **`pulse` — a CLI** (optional) for terminals, scripts, and CI. Structured `--json` on every command, no interactive prompts unless needed, consistent exit codes.
 
 Both authenticate the same way — a bearer token (preferred) or a saved cookie session — against the same deployed Pulse.
@@ -97,8 +97,9 @@ for writes (older deployments return the API's 401/403 text instead).
 > **Most write tools are permission-gated.** Each checks the calling token's
 > scopes against the user's role for that specific action (e.g.
 > `ISSUE_EDIT_OWN`/`ISSUE_EDIT_ANY`, `ISSUE_ASSIGN`, `ISSUE_CREATE`,
-> `COMMENT_CREATE`, `MILESTONE_MANAGE`, `SPRINT_MANAGE`, `MODULE_MANAGE`,
-> `FEEDBACK_CREATE`, `STANDUP_MANAGE`). The exceptions are issue **links**
+> `COMMENT_CREATE`, `COMMENT_DELETE_OWN`/`COMMENT_DELETE_ANY`,
+> `ISSUE_DELETE_OWN`/`ISSUE_DELETE_ANY`, `MILESTONE_MANAGE`, `SPRINT_MANAGE`,
+> `MODULE_MANAGE`, `FEEDBACK_CREATE`, `STANDUP_MANAGE`). The exceptions are issue **links**
 > (`pulse_link_issues`/`pulse_unlink_issue`) and **watch/unwatch**
 > (`pulse_watch_issue`/`pulse_unwatch_issue`), which the current backend gates
 > on authentication only — any valid token may call them. When a gated action
@@ -127,9 +128,15 @@ This puts `pulse-mcp` (and the optional `pulse` CLI) on your PATH.
 > steps 2–3 below are the fallback if you'd rather not use the wizard.
 
 **2. Mint a token** — in Pulse, go to **Settings → API Tokens → New Token**.
-Leave scopes unchecked for a read-only token, or tick `CODE_REF_WRITE` if the
-agent should attach PR/commit links to issues. Copy the `pulse_pat_…` string
-now — it is shown **once**.
+Leave every scope unchecked for a **read-only** token: the 5 read/report tools
+work, and all 27 write tools correctly answer `403`. To let the agent write,
+tick the scopes for what it should actually be able to do — e.g.
+`CODE_REF_WRITE` to attach PR/commit links, `ISSUE_CREATE` +
+`ISSUE_EDIT_OWN`/`ISSUE_EDIT_ANY` for issues, `COMMENT_CREATE` for comments,
+`MILESTONE_MANAGE`/`SPRINT_MANAGE`/`MODULE_MANAGE` for planning, and the
+`*_DELETE_OWN`/`*_DELETE_ANY` pair for the delete tools. A token can never
+exceed your own role, so ticking a scope your role lacks still yields `403`.
+Copy the `pulse_pat_…` string now — it is shown **once**.
 
 **3. Register with Claude Code:**
 
@@ -293,19 +300,26 @@ src/
             — this is the `pulse` bin
   mcp/      MCP stdio server (src/mcp/index.ts, src/mcp/tools.ts)
             — this is the `pulse-mcp` bin
+  mcp-http/ Stateless streamable-HTTP MCP gateway for claude.ai custom
+            connectors (src/mcp-http/index.ts). Re-exports the same tools
+            from src/mcp/tools.ts — no duplicated tool logic
 ```
 
-`core/` never imports from `cli/` or `mcp/`; both `cli/` and `mcp/` depend on
-`core/` but never on each other. `npm run build` (plain `tsc`, `rootDir: src`)
-emits 1:1 to `dist/` — `src/x/y.ts` becomes `dist/x/y.js`.
+`core/` never imports from `cli/`, `mcp/`, or `mcp-http/`; each of those three
+depends on `core/` but never on the others — except `mcp-http/`, which
+deliberately reuses `registerTools` from `mcp/tools.ts`. `npm run build` (plain
+`tsc`, `rootDir: src`) emits 1:1 to `dist/` — `src/x/y.ts` becomes
+`dist/x/y.js`.
 
 ---
 
 ## CLI quick start
 
 The CLI is **optional** — if you only use the MCP server, you can stop reading
-here. It covers the write operations the MCP server doesn't (create/edit
-issues, comments, attachments, links) for terminals, scripts, and CI.
+here. The MCP server now covers issues, comments, links, planning, and code
+refs, so the CLI's remaining exclusives are **attachments** (upload/download/
+remove) and the interactive `pulse login` session flow. Otherwise it's the same
+surface, for terminals, scripts, and CI.
 
 ```bash
 # 1. Install (same one-liner as the MCP server — you already have `pulse`
@@ -544,13 +558,14 @@ pulse issue create \
   --description-file ./description.md \
   --category TASK
 
-# Create directly into a specific status — omitting --status yields BACKLOG,
-# the server default (matches what the web UI does on a bare "new issue")
+# NOTE: `issue create --status` is currently INERT. The flag exists and is sent,
+# but Pulse's create endpoint has no `status` field, so the server silently
+# drops it and the issue always lands in BACKLOG. Move it afterwards:
 pulse issue create \
   --title "Spike: evaluate X" \
   --description "..." \
-  --category TASK \
-  --status OPEN
+  --category TASK
+pulse issue edit PULSE-0042 --status OPEN
 
 # Edit — only specified fields are changed
 pulse issue edit PULSE-0001 --status IN_PROGRESS
@@ -729,8 +744,8 @@ KEY=$(pulse --json issue create --title "Deploy report" --description "Auto" --c
 # 2. Attach a generated file
 pulse --json attachment add "$KEY" ./deploy-report.pdf
 
-# 3. Mark in-progress
-pulse --json issue edit "$KEY" --status IN_PROGRESS --yes
+# 3. Mark in-progress (`issue edit` takes no --yes; only delete/remove do)
+pulse --json issue edit "$KEY" --status IN_PROGRESS
 ```
 
 ---
