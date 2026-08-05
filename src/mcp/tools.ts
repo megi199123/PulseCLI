@@ -503,6 +503,72 @@ export function registerTools(server: McpServer, client: PulseClient): void {
   );
 
   // ===========================================================
+  // pulse_delete_comment
+  // ===========================================================
+  server.tool(
+    "pulse_delete_comment",
+    "Delete a Pulse comment permanently. This is a hard delete with no undo, " +
+      "though a COMMENT_DELETED activity entry is recorded on the parent " +
+      "issue/milestone/sprint naming the actor. Comment ids come from " +
+      "pulse_get_issue (the `comments[].id` field). Requires COMMENT_DELETE_ANY, " +
+      "or COMMENT_DELETE_OWN when the token's user authored the comment — the " +
+      "token must hold the scope AND the user's role must grant it. Needs a " +
+      "Pulse server where DELETE /api/comments accepts bearer auth; older " +
+      "servers answer 401. On failure (401, 403 not permitted, 404 not found) " +
+      "the Pulse API's error message is returned as the result text rather " +
+      "than as a tool failure.",
+    {
+      comment: z.string().describe("Comment id (cuid) to delete — see comments[].id from pulse_get_issue"),
+    },
+    async ({ comment }) => {
+      try {
+        const result = await client.del<{ success: boolean }>(
+          `/api/comments/${encodeURIComponent(comment)}`,
+        );
+        return textResult(result);
+      } catch (err) {
+        if (err instanceof PulseApiError) {
+          return { content: [{ type: "text" as const, text: err.message }] };
+        }
+        throw err;
+      }
+    },
+  );
+
+  // ===========================================================
+  // pulse_delete_issue
+  // ===========================================================
+  server.tool(
+    "pulse_delete_issue",
+    "Move a Pulse issue to Trash (soft delete). It is reversible: an admin " +
+      "can restore it from Trash in the Pulse UI. Accepts an issue key " +
+      "(e.g. PULSE-0123) or a raw cuid id. Requires " +
+      "ISSUE_DELETE_ANY, or ISSUE_DELETE_OWN when the token's user is the " +
+      "issue's reporter — the token must hold the scope AND the user's role " +
+      "must grant it. Needs a Pulse server where DELETE /api/issues accepts " +
+      "bearer auth; older servers answer 401. On failure (401, 403 not " +
+      "permitted, 404 not found) the Pulse API's error message is returned " +
+      "as the result text rather than as a tool failure.",
+    {
+      issue: z.string().describe("Issue key (e.g. PULSE-0123) or cuid id to move to Trash"),
+    },
+    async ({ issue }) => {
+      try {
+        const id = await resolveIssueId(client, issue);
+        const result = await client.del<{ message: string }>(
+          `/api/issues/${encodeURIComponent(id)}`,
+        );
+        return textResult(result);
+      } catch (err) {
+        if (err instanceof PulseApiError) {
+          return { content: [{ type: "text" as const, text: err.message }] };
+        }
+        throw err;
+      }
+    },
+  );
+
+  // ===========================================================
   // pulse_set_issue_labels
   // ===========================================================
   server.tool(

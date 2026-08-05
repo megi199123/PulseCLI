@@ -37,7 +37,7 @@ HTTP/auth plumbing with the CLI via `src/core/`.
 ### Tools
 
 The stdio `pulse-mcp` server — and the HTTP gateway described below — expose
-**29 tools**: 5 read/report tools plus 24 write tools. Every write tool is
+**32 tools**: 5 read/report tools plus 27 write tools. Every write tool is
 permission-gated by the calling token's scopes ∩ the user's Pulse role, and
 requires a Pulse deployment whose API routes accept Personal Access Token auth
 for writes (older deployments return the API's 401/403 text instead).
@@ -59,6 +59,8 @@ for writes (older deployments return the API's 401/403 text instead).
 | `pulse_update_issue` | Update fields on an existing issue — title, description, category, status, priority, module, assignee, milestone, sprint, due/dev/EUS dates. Does **not** set labels (use `pulse_set_issue_labels`); module cannot be cleared, only reassigned. |
 | `pulse_create_issue` | Create a new issue (`title`/`description`/`category` required). New issues always start at `BACKLOG` — there is **no `status` field on create**; move it afterward with `pulse_update_issue`. |
 | `pulse_add_comment` | Add a comment to an issue — plain text is auto-wrapped in `<p>`, or pass Tiptap HTML directly. |
+| `pulse_delete_comment` | Delete a comment permanently (hard delete; a `COMMENT_DELETED` activity entry is still recorded). Needs `COMMENT_DELETE_ANY`, or `COMMENT_DELETE_OWN` for your own comments. |
+| `pulse_delete_issue` | Move an issue to Pulse's Trash (soft delete) — **not permanent**, an admin can restore it. Needs `ISSUE_DELETE_ANY`, or `ISSUE_DELETE_OWN` when you're the reporter. |
 | `pulse_set_issue_labels` | Replace an issue's full label set. This is a full REPLACE, not additive — pass `[]` to clear all labels. |
 | `pulse_link_issues` | Link two issues (`RELATED`, `BLOCKS`, `BLOCKED_BY`, `DUPLICATES`, `DUPLICATED_BY`). |
 | `pulse_unlink_issue` | Remove a link from an issue by link id. |
