@@ -10,7 +10,7 @@ import fs from "node:fs";
 import path from "node:path";
 import * as readline from "node:readline";
 import { printJson, printTable, ok, info } from "../output.js";
-import { formatDate, resolveIssueId } from "../../core/util.js";
+import { formatDate, resolveIssueId } from "pulse-mcp-tools";
 // ---- Constants ----
 const ALLOWED_EXTENSIONS = new Set([
     ".txt", ".log", ".ps1", ".py", ".sql", ".md", ".csv", ".pdf",

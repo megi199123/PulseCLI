@@ -8,9 +8,8 @@
 import fs from "node:fs";
 import { Command } from "commander";
 import { printJson, printTable, ok, info } from "../output.js";
-import { formatDate, truncate, stripHtml, resolveIssueId } from "../../core/util.js";
-import type { CliContext } from "../../core/context.js";
-import type { Comment, IssueDetail } from "../../core/types.js";
+import { formatDate, truncate, stripHtml, resolveIssueId } from "pulse-mcp-tools";
+import type { CliContext, Comment, IssueDetail } from "pulse-mcp-tools";
 
 // ---- Registrar ----
 

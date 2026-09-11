@@ -2,8 +2,7 @@
 // PulseCLI — src/cli/commands/auth.ts
 // Commands: login, logout, whoami, config get, config set-url
 // ============================================================
-import { login, getSession } from "../../core/auth-flow.js";
-import { clearSession, setBaseUrl, loadConfig } from "../../core/config.js";
+import { login, getSession, clearSession, setBaseUrl, loadConfig } from "pulse-mcp-tools";
 import { printJson, printTable, ok, info } from "../output.js";
 import { promptVisible, promptHidden } from "../prompt.js";
 // ---- Registrar ----

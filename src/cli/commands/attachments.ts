@@ -12,9 +12,8 @@ import path from "node:path";
 import * as readline from "node:readline";
 import { Command } from "commander";
 import { printJson, printTable, ok, info } from "../output.js";
-import { formatDate, resolveIssueId } from "../../core/util.js";
-import type { CliContext } from "../../core/context.js";
-import type { Attachment, IssueDetail } from "../../core/types.js";
+import { formatDate, resolveIssueId } from "pulse-mcp-tools";
+import type { CliContext, Attachment, IssueDetail } from "pulse-mcp-tools";
 
 // ---- Constants ----
 

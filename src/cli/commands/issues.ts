@@ -12,15 +12,16 @@ import fs from "node:fs";
 import * as readline from "node:readline";
 import { Command } from "commander";
 import { printJson, printTable, ok, info } from "../output.js";
-import { truncate, formatDate, parseDueDate } from "../../core/util.js";
-import { resolveUserId, resolveLabelId, resolveModuleSlug } from "../../core/lookups.js";
+import {
+  truncate,
+  formatDate,
+  parseDueDate,
+  resolveUserId,
+  resolveLabelId,
+  resolveModuleSlug,
+} from "pulse-mcp-tools";
 import { formatCodeRefLabel } from "./code-refs.js";
-import type { CliContext } from "../../core/context.js";
-import type {
-  IssueListItem,
-  IssueDetail,
-  Category,
-} from "../../core/types.js";
+import type { CliContext, IssueListItem, IssueDetail, Category } from "pulse-mcp-tools";
 
 // ---- Readline confirm helper ----
 

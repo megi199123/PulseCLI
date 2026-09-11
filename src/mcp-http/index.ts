@@ -1,8 +1,9 @@
 // ============================================================
 // PulseCLI — src/mcp-http/index.ts
 // Stateless streamable-HTTP MCP gateway for remote clients (claude.ai custom
-// connectors). Serves the EXACT SAME tools as the stdio server
-// (src/mcp/tools.ts) but builds a fresh PulseClient + McpServer PER REQUEST
+// connectors). Serves the EXACT SAME tools as the stdio server (both import
+// registerTools from the shared "pulse-mcp-tools" package) but builds a
+// fresh PulseClient + McpServer PER REQUEST
 // from the caller's `Authorization: Bearer <pulse_pat_...>` header — no
 // sessions, no disk config, no state shared between requests.
 //
@@ -25,12 +26,11 @@
 import http from "node:http";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { PulseClient } from "../core/client.js";
-import { registerTools } from "../mcp/tools.js";
+import { PulseClient, registerTools } from "pulse-mcp-tools";
 
 // Mirrors package.json / src/cli/index.ts `.version(...)` / src/mcp/index.ts
 // `SERVER_VERSION` (manual-sync convention — keep all four strings identical).
-const SERVER_VERSION = "0.4.3";
+const SERVER_VERSION = "0.5.0";
 
 const baseUrl = (process.env.PULSE_BASE_URL ?? "").replace(/\/+$/, "");
 if (!baseUrl) {

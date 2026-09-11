@@ -10,9 +10,8 @@
 import * as readline from "node:readline";
 import { Command } from "commander";
 import { printJson, printTable, ok, info } from "../output.js";
-import { truncate, formatDate, resolveIssueId } from "../../core/util.js";
-import type { CliContext } from "../../core/context.js";
-import type { CodeReference, CodeRefReportItem } from "../../core/types.js";
+import { truncate, formatDate, resolveIssueId } from "pulse-mcp-tools";
+import type { CliContext, CodeReference, CodeRefReportItem } from "pulse-mcp-tools";
 
 // ---- Helpers ----
 

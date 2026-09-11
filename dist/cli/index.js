@@ -5,8 +5,7 @@
 // ============================================================
 import { execSync } from "node:child_process";
 import { Command } from "commander";
-import { loadConfig } from "../core/config.js";
-import { PulseClient } from "../core/client.js";
+import { loadConfig, PulseClient } from "pulse-mcp-tools";
 import { setJsonMode } from "./output.js";
 import { printError } from "./output.js";
 import { register as registerAuth } from "./commands/auth.js";
@@ -38,7 +37,7 @@ const program = new Command();
 program
     .name("pulse")
     .description("Atlas Pulse CLI — scriptable task tracker interface")
-    .version("0.4.3", "-v, --version")
+    .version("0.5.0", "-v, --version")
     .helpOption("-h, --help", "Display help")
     // Global options — available to every subcommand via optsWithGlobals()
     .option("-j, --json", "Output raw JSON (for agent/script consumers)", false)

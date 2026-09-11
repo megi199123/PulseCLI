@@ -7,7 +7,7 @@
 // ============================================================
 import * as readline from "node:readline";
 import { printJson, printTable, ok, info } from "../output.js";
-import { truncate, resolveIssueId } from "../../core/util.js";
+import { truncate, resolveIssueId } from "pulse-mcp-tools";
 // ---- Helpers ----
 const VALID_LINK_TYPES = ["RELATED", "BLOCKS", "BLOCKED_BY"];
 function promptConfirm(question) {

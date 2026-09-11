@@ -11,14 +11,17 @@
 import { Command } from "commander";
 import os from "node:os";
 import { spawnSync } from "node:child_process";
-import { PulseClient } from "../../core/client.js";
-import { loadConfig, saveConfig } from "../../core/config.js";
-import { login, getSession } from "../../core/auth-flow.js";
-import { mintApiToken } from "../../core/tokens.js";
-import type { SessionUser } from "../../core/types.js";
+import {
+  PulseClient,
+  loadConfig,
+  saveConfig,
+  login,
+  getSession,
+  mintApiToken,
+} from "pulse-mcp-tools";
+import type { SessionUser, CliContext } from "pulse-mcp-tools";
 import { printJson, ok, info } from "../output.js";
 import { promptVisible, promptHidden, promptConfirm } from "../prompt.js";
-import type { CliContext } from "../../core/context.js";
 
 const DEFAULT_LIVE_URL = "https://pulse.example.com";
 const REGISTER_COMMAND = "claude mcp add --scope user pulse -- pulse-mcp";

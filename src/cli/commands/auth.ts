@@ -4,11 +4,10 @@
 // ============================================================
 
 import { Command } from "commander";
-import { login, getSession } from "../../core/auth-flow.js";
-import { clearSession, setBaseUrl, loadConfig } from "../../core/config.js";
+import { login, getSession, clearSession, setBaseUrl, loadConfig } from "pulse-mcp-tools";
+import type { CliContext } from "pulse-mcp-tools";
 import { printJson, printTable, ok, info } from "../output.js";
 import { promptVisible, promptHidden } from "../prompt.js";
-import type { CliContext } from "../../core/context.js";
 
 // ---- Registrar ----
 

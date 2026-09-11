@@ -10,8 +10,7 @@
 import fs from "node:fs";
 import * as readline from "node:readline";
 import { printJson, printTable, ok, info } from "../output.js";
-import { truncate, formatDate, parseDueDate } from "../../core/util.js";
-import { resolveUserId, resolveLabelId, resolveModuleSlug } from "../../core/lookups.js";
+import { truncate, formatDate, parseDueDate, resolveUserId, resolveLabelId, resolveModuleSlug, } from "pulse-mcp-tools";
 import { formatCodeRefLabel } from "./code-refs.js";
 // ---- Readline confirm helper ----
 function promptConfirm(question) {

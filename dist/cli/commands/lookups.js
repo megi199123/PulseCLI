@@ -1,7 +1,7 @@
 // ============================================================
 // PulseCLI — src/cli/commands/lookups.ts
 // Commands: users list, labels list, modules list
-// Name→id resolution helpers used by issues.ts live in ../../core/lookups.js
+// Name→id resolution helpers used by issues.ts live in the pulse-mcp-tools package
 // ============================================================
 import { printJson, printTable } from "../output.js";
 // ---- Registrar ----

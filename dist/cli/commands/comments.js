@@ -6,7 +6,7 @@
 // ============================================================
 import fs from "node:fs";
 import { printJson, printTable, ok, info } from "../output.js";
-import { formatDate, truncate, stripHtml, resolveIssueId } from "../../core/util.js";
+import { formatDate, truncate, stripHtml, resolveIssueId } from "pulse-mcp-tools";
 // ---- Registrar ----
 export function register(program, ctx) {
     const commentCmd = program

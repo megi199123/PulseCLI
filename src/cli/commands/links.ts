@@ -9,9 +9,8 @@
 import * as readline from "node:readline";
 import { Command } from "commander";
 import { printJson, printTable, ok, info } from "../output.js";
-import { truncate, resolveIssueId } from "../../core/util.js";
-import type { CliContext } from "../../core/context.js";
-import type { IssueLink, LinkType } from "../../core/types.js";
+import { truncate, resolveIssueId } from "pulse-mcp-tools";
+import type { CliContext, IssueLink, LinkType } from "pulse-mcp-tools";
 
 // ---- Helpers ----
 

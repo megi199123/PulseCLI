@@ -1,13 +1,12 @@
 // ============================================================
 // PulseCLI — src/cli/commands/lookups.ts
 // Commands: users list, labels list, modules list
-// Name→id resolution helpers used by issues.ts live in ../../core/lookups.js
+// Name→id resolution helpers used by issues.ts live in the pulse-mcp-tools package
 // ============================================================
 
 import { Command } from "commander";
 import { printJson, printTable } from "../output.js";
-import type { CliContext } from "../../core/context.js";
-import type { UserLookup, Label, ModuleLookup } from "../../core/types.js";
+import type { CliContext, UserLookup, Label, ModuleLookup } from "pulse-mcp-tools";
 
 // ---- Registrar ----
 

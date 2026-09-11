@@ -11,14 +11,12 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { loadConfig } from "../core/config.js";
-import { PulseClient } from "../core/client.js";
-import { registerTools } from "./tools.js";
+import { loadConfig, PulseClient, registerTools } from "pulse-mcp-tools";
 
 // Mirrors package.json's version (kept in sync manually, same convention as
 // the `-v/--version` string hardcoded in src/cli/index.ts, and the
 // SERVER_VERSION constant in src/mcp-http/index.ts).
-const SERVER_VERSION = "0.4.3";
+const SERVER_VERSION = "0.5.0";
 
 function buildClient(): PulseClient {
   const config = loadConfig();

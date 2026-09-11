@@ -8,7 +8,7 @@
 // ============================================================
 import * as readline from "node:readline";
 import { printJson, printTable, ok, info } from "../output.js";
-import { truncate, formatDate, resolveIssueId } from "../../core/util.js";
+import { truncate, formatDate, resolveIssueId } from "pulse-mcp-tools";
 // ---- Helpers ----
 function promptConfirm(question) {
     return new Promise((resolve) => {

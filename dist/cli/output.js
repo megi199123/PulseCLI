@@ -3,8 +3,7 @@
 // Zero-dependency output formatting: tables, JSON, errors.
 // WRITES TO STDOUT — must NOT be imported by core/ or mcp/.
 // ============================================================
-import { PulseApiError } from "../core/client.js";
-import { truncate } from "../core/util.js";
+import { PulseApiError, truncate } from "pulse-mcp-tools";
 // ---- JSON mode flag ----
 let _jsonMode = false;
 export function setJsonMode(b) {
